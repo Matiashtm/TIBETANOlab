@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sintetizador WAV con ADSR y Octavas</title>
+  <script src="https://cdn.jsdelivr.net/npm/nexusui@2.0.10/dist/NexusUI.min.js"></script>
+
+<style>
+  body {
+    font-family: sans-serif;
+    background: #111;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    margin: 0;
+  }
+
+  .principalContainer {
+   position: absolute; 
+    top: 100px;       
+    left: 100px;        
+    border: 10px outset grey;
+    border-radius: 20px;
+    padding: 20px;
+    width: 90vw;
+    max-width: 1200px;
+    min-height: 75vh;
+    max-height: 75vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #050404;
+    background-image: url('BACKGROUND1.png');
+    background-size: contain;
+    background-position: top center;
+    background-repeat: no-repeat;
+    gap: 20px;
+    cursor: grab;
+    user-select: none; /* Evita que se seleccione texto al arrastrar */
+}
+.principalContainer:active {
+    cursor: grabbing;
+}
+
+  .preset-select-container {
+    margin-left: 0%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 20px;
+    width: 50%;
+  }
+
+  #presetSelect {
+    background-color: #222;
+    color: #E0722B;
+    border: 1px solid #444;
+    padding: 10px 20px;
+    font-size: 1em;
+    border-radius: 5px;
+    width: 300px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  #presetSelect:hover {
+    background-color: #333;
+  }
+
+  .octave-buttons {
+    display: flex;
+    gap: 12px;
+  }
+
+button {
+  background: linear-gradient(to bottom, #555, #333); /* relieve de luz superior */
+  border: 1px solid #666;
+  color: #eee;
+  padding: 10px 20px;
+  font-size: 1em;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),  /* luz interior arriba */
+    0 4px 6px rgba(0, 0, 0, 0.5);           /* sombra externa */
+  transition: 0.2s;
+}
+
+button:hover {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6);  /* hundimiento interior */
+  transform: translateY(2px);            /* simula que se presiona */
+}
+
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 0px;
+    width: 60%;
+    background: linear-gradient(to bottom, #444, #222); /* fondo con degradado */
+    border-radius: 10px;                                /* bordes redondeados */
+    padding: 5px;
+    box-shadow:
+      inset 0 2px 4px rgba(255, 255, 255, 0.1),          /* relieve interno superior */
+      inset 0 -2px 4px rgba(0, 0, 0, 0.6),               /* relieve interno inferior */
+      0 4px 8px rgba(0, 0, 0, 0.5);                      /* sombra exterior */
+    border: 1px solid #555;                              /* borde exterior */
+  }
+    .controls2 {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 0px;
+    width: 50%;
+    background: transparent; /* fondo con degradado */
+    border-radius: 10px;                                /* bordes redondeados */
+    padding: 5px;
+ 
+  }
+
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 70px;
+  }
+
+  .control-group::before {
+    content: attr(data-label);
+    margin-bottom: 0px;
+  }
+
+.imgSelect {
+
+  width: 100px;
+  height: 100px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 10px; /* más redondeado */
+  cursor: pointer;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.8); /* sombra negra */
+}
+.imgSelect:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 1);
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+
+#principalContainer.glow {
+  box-shadow: inset 0 0 40px 20px #6B0505;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+
+
+
+
+  @media (max-width: 768px) {
+    .controls {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .preset-select-container {
+      flex-direction: column;
+      align-items: center;
+    }
+
+
+  }
+</style>
+
+<body>
+  <div class="principalContainer" id="principalContainer">
+        <div class="controls">
+          <div class="control-group" data-label="VOLUMEN">
+            <div id="volumeKnob"></div>
+          </div>
+          <div class="control-group" data-label="ATTACK">
+            <div id="attackKnob"></div>
+          </div>
+          <div class="control-group" data-label="DECAY">
+            <div id="decayKnob"></div>
+          </div>
+          <div class="control-group" data-label="SUSTAIN">
+            <div id="sustainKnob"></div>
+          </div>
+          <div class="control-group" data-label="RELEASE">
+            <div id="releaseKnob"></div>
+          </div>
+          <div class="control-group" data-label="CUTOFF">
+            <div id="cutoffKnob"></div>
+          </div>
+        </div>
+
+        <div class="controls2">
+          <div class="imgSelect" id="TecladoSelect" style="background-image: url('ELECTRICPIANO.png');" onclick="SeleccionTeclado(1)"></div>
+          <div class="imgSelect" id="TecladoSelect2"style="background-image: url('ACORDEONBOTON.png');" onclick="SeleccionTeclado(2)"></div>
+          <div class="imgSelect" id="TecladoSelect3"style="background-image: url('URBANBOTON.png');" onclick="SeleccionTeclado(3)"></div>
+        </div>
+
+    <!-- Selector de Presets y Octavas -->
+    <div class="preset-select-container">
+        <select id="presetSelect" onchange="SeleccionPreset()">
+        <option value="">-- ELIGE UN TECLADO --</option>
+        </select>
+    <div class="octave-buttons">
+        <button id="octaveDown">Octava +</button>
+        <button id="octaveUp">Octava -</button>
+    </div>
+    </div>
+
+
+
+  </div>
+
+
+
+
+</body>
+
+  <script>
+ 
+  const fondoUso = document.getElementById("principalContainer");
+  const tecladoUso = document.getElementById("TecladoSelect");
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let audioBuffer = null;
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  // --- Soporte para teclado MIDI físico ---
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+  } else {
+    alert("Tu navegador no soporta Web MIDI API. Usá Chrome o Edge.");
+  }
+
+  function onMIDISuccess(midiAccess) {
+    for (let input of midiAccess.inputs.values()) {
+      input.onmidimessage = getMIDIMessage;
+    }
+  }
+
+  function onMIDIFailure() {
+    console.error("No se pudo acceder al dispositivo MIDI.");
+  }
+
+  function getMIDIMessage(message) {
+    const [command, note, velocity] = message.data;
+
+    if (command === 144 && velocity > 0) { 
+      activarTecla(note); // Nota ON
+    } else if (command === 128 || (command === 144 && velocity === 0)) { 
+      desactivarTecla(note); // Nota OFF
+    }
+  }
+
+  function activarTecla(note) {
+    const tecla = document.querySelector(`[data-note='${note}']`);
+    if (tecla) tecla.classList.add("activa");
+  }
+
+  function desactivarTecla(note) {
+    const tecla = document.querySelector(`[data-note='${note}']`);
+    if (tecla) tecla.classList.remove("activa");
+  }
+
+  // --- Knobs NexusUI ---
+  const volumeKnob = new Nexus.Dial('#volumeKnob', {
+    size: [60, 60], min: 0, max: 1, step: 0.01, value: 0.3
+  });
+  const attackKnob = new Nexus.Dial('#attackKnob', {
+    size: [60, 60], min: 0, max: 1, step: 0.01, value: 0.1
+  });
+  const decayKnob = new Nexus.Dial('#decayKnob', {
+    size: [60, 60], min: 0, max: 1, step: 0.01, value: 0.2
+  });
+  const sustainKnob = new Nexus.Dial('#sustainKnob', {
+    size: [60, 60], min: 0, max: 1, step: 0.01, value: 0.7
+  });
+  const releaseKnob = new Nexus.Dial('#releaseKnob', {
+    size: [60, 60], min: 0, max: 2, step: 0.01, value: 0.3
+  });
+  const cutoffKnob = new Nexus.Dial('#cutoffKnob', {
+    size: [60, 60], min: 100, max: 10000, step: 1, value: 5000
+  });
+  const knobs = [volumeKnob, attackKnob, decayKnob, sustainKnob, releaseKnob, cutoffKnob];
+  knobs.forEach(knob => {
+    knob.colorize("accent", "#6B0505");
+    knob.colorize("fill", "#222222");
+  });
+
+  async function cargarWav(wavFile) {
+    try {
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      const res = await fetch(wavFile);
+      const buffer = await res.arrayBuffer();
+      audioBuffer = await audioCtx.decodeAudioData(buffer);
+      console.log(`✅ WAV cargado desde: ${wavFile}`);
+    } catch (err) {
+      console.error("Error cargando WAV:", err);
+    }
+  }
+
+  const presetsPorTeclado = {
+    2: [
+      "ACORDEON KAWAI FS690", "BANDONEON XP10",
+      "MUSSETE N364","ACUSTIC CLARINET","ACUSTIC MUSSETTE","ACUSTIC BASSOON","TB MUSSETE","TB MUSSETE 02","TB 03","TB KAWAI","NEW KAWAI","TB BANDONEON"
+    ],
+    3: [
+      "HONKYTONK XP10", "MONOLEAD N364", "BAGPIPE XP10","BIG MINI", "BUSY BOY", "DISTGT XP10",
+      "P5POLY XP10", "PAN FLAUTE N364", "PIZZICATO","POLYSYNTH D-50", "SHAMISEN N364", "SITAR XP10",
+      "SPLITSYNC N364", "SQUARE WAVE N364", "SUPER BX3", "TENOR SAX","BRASS","TB MONOLEAD"
+    ],
+    1: [
+      "X PIANO N364","RODES1","ORGANO","HAMMOND SYNTHE","ACUSTIC PIANO","CAMPANAS","CANIAS","ELECTRIC PIANO","ORGANO LESLIE"
+    ]
+  };
+
+  function SeleccionPreset() {
+    const select = document.getElementById("presetSelect");
+    const selected = select.value;
+    if (!selected) return;
+    const wavFile = `${selected}.wav`;
+    cargarWav(wavFile);
+  }
+
+  let Teclado = 1;
+  function SeleccionTeclado(Teclado) {
+    const fondo = fondoUso;
+    const select = document.getElementById("presetSelect");
+    fondo.style.backgroundImage = `url('BACKGROUND${Teclado}.png')`;
+    select.innerHTML = `<option value="">-- Elige un preset --</option>`;
+    presetsPorTeclado[Teclado].forEach(preset => {
+      const option = document.createElement("option");
+      option.value = preset;
+      option.textContent = preset;
+      select.appendChild(option);
+    });
+  }
+
+  let currentOctaveOffset = 0; // en semitonos, múltiplos de 12
+
+  const keyToSemitone = {
+    a: 0,  // C
+    w: 1,  // C#
+    s: 2,  // D
+    e: 3,  // D#
+    d: 4,  // E
+    f: 5,  // F
+    t: 6,  // F#
+    g: 7,  // G
+    y: 8,  // G#
+    h: 9,  // A
+    u: 10, // A#
+    j: 11  // B
+  };
+
+  const activeNotes = new Map();
+
+  let pitchBendSemitones = 0;
+  const extendedRelease = 1.5;
+
+  // Para efecto LFO tecla 3
+  const lfoDetuneFrequency = 5; // Hz
+  const lfoDetuneAmount = 0.3; // semitonos
+  const lfoDetuneIntervals = new Map();
+
+  // Flag para tecla 4
+  let modoReleaseLargo = false;
+
+  // Función para obtener release normal actual
+  function normalReleaseDefault() {
+    return parseFloat(releaseKnob.value);
+  }
+
+  function updatePlaybackRate(note, extraDetune = 0) {
+    // Calculamos semitonos siempre tomando el currentOctaveOffset dinámico
+    const semitoneTotal = note.baseSemitone + currentOctaveOffset + pitchBendSemitones + extraDetune;
+    if (!isFinite(semitoneTotal)) return;
+    const rate = Math.pow(2, semitoneTotal / 12);
+    note.source.playbackRate.value = rate;
+  }
+
+  function startNote(semitone, key) {
+    if (!audioBuffer) return;
+    if (activeNotes.has(key)) return;
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(parseFloat(cutoffKnob.value), audioCtx.currentTime);
+
+    const gainNode = audioCtx.createGain();
+
+    source.connect(filter).connect(gainNode).connect(audioCtx.destination);
+
+    const totalSemitone = semitone + currentOctaveOffset + pitchBendSemitones;
+    const basePlaybackRate = Math.pow(2, (semitone + pitchBendSemitones + currentOctaveOffset) / 12);
+    source.playbackRate.value = basePlaybackRate;
+
+    const now = audioCtx.currentTime;
+    const volume = parseFloat(volumeKnob.value);
+    const attack = parseFloat(attackKnob.value);
+    const decay = parseFloat(decayKnob.value);
+    const sustain = parseFloat(sustainKnob.value);
+
+    const releaseAplicar = modoReleaseLargo ? extendedRelease : normalReleaseDefault();
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(volume, now + attack);
+    gainNode.gain.linearRampToValueAtTime(volume * sustain, now + attack + decay);
+    gainNode.gain.setValueAtTime(volume * sustain, now + attack + decay + 0.1);
+
+    source.start(now);
+
+    activeNotes.set(key, {
+      source,
+      gainNode,
+      filter,
+      baseSemitone: semitone + currentOctaveOffset,
+      releaseAplicar,
+    });
+  }
+
+  function stopNote(key) {
+    if (!activeNotes.has(key)) return;
+
+    const note = activeNotes.get(key);
+    activeNotes.delete(key);
+
+    if (lfoDetuneIntervals.has(key)) {
+      clearInterval(lfoDetuneIntervals.get(key));
+      lfoDetuneIntervals.delete(key);
+    }
+
+    const now = audioCtx.currentTime;
+
+    let release = note.releaseAplicar;
+
+    if (!modoReleaseLargo && release === extendedRelease) {
+      release = normalReleaseDefault();
+    }
+
+    note.gainNode.gain.cancelScheduledValues(now);
+    note.gainNode.gain.setValueAtTime(note.gainNode.gain.value, now);
+    note.gainNode.gain.linearRampToValueAtTime(0, now + release);
+
+    note.source.stop(now + release + 0.05);
+
+    if (activeNotes.size === 0) {
+      document.getElementById("principalContainer").classList.remove("glow");
+    }
+  }
+
+window.addEventListener("keydown", (e) => {
+  if (!audioBuffer) return;
+  if (e.repeat) return;
+
+  const key = e.key.toLowerCase();
+  if (keyToSemitone.hasOwnProperty(key)) {
+    startNote(keyToSemitone[key], key);
+  }
+
+  if (!activeNotes.size) return;
+
+  switch (key) {
+    case '2':
+      pitchBendSemitones = 1;
+      activeNotes.forEach(note => updatePlaybackRate(note));
+      break;
+
+    case '3':
+      activeNotes.forEach((note, noteKey) => {
+        if (lfoDetuneIntervals.has(noteKey)) return;
+        const baseRate = note.source.playbackRate.value;
+        const startTime = audioCtx.currentTime;
+        const interval = setInterval(() => {
+          const elapsed = audioCtx.currentTime - startTime;
+          const detune = lfoDetuneAmount * Math.sin(2 * Math.PI * lfoDetuneFrequency * elapsed);
+          note.source.playbackRate.value = baseRate * Math.pow(2, detune / 12);
+        }, 15);
+        lfoDetuneIntervals.set(noteKey, interval);
+      });
+      break;
+
+    case '4':
+      modoReleaseLargo = true;
+      // Actualizar releaseAplicar para todas las notas activas
+      activeNotes.forEach(note => {
+        note.releaseAplicar = extendedRelease;
+      });
+      break;
+
+    case '5':
+    case '6':
+      // Sin efecto para 5 y 6
+      break;
+  }
+});
+
+window.addEventListener("keyup", (e) => {
+  const key = e.key.toLowerCase();
+
+  if (keyToSemitone.hasOwnProperty(key)) {
+    stopNote(key);
+  }
+
+  switch (key) {
+    case '2':
+      pitchBendSemitones = 0;
+      activeNotes.forEach(note => updatePlaybackRate(note));
+      break;
+
+    case '3':
+      activeNotes.forEach((note, noteKey) => {
+        if (lfoDetuneIntervals.has(noteKey)) {
+          clearInterval(lfoDetuneIntervals.get(noteKey));
+          lfoDetuneIntervals.delete(noteKey);
+          const baseSemitone = note.baseSemitone + pitchBendSemitones;
+          note.source.playbackRate.value = Math.pow(2, baseSemitone / 12);
+        }
+      });
+      break;
+
+    case '4':
+      modoReleaseLargo = false;
+      // Actualizar releaseAplicar para todas las notas activas
+      activeNotes.forEach(note => {
+        note.releaseAplicar = normalReleaseDefault();
+      });
+      break;
+
+    case '5':
+    case '6':
+      // Sin efecto para 5 y 6
+      break;
+  }
+});
+document.getElementById("octaveUp").addEventListener("click", () => {
+  currentOctaveOffset += 12;
+  if (currentOctaveOffset > 24) currentOctaveOffset = 24;
+  console.log("Octava actual +", currentOctaveOffset / 12);
+});
+
+document.getElementById("octaveDown").addEventListener("click", () => {
+  currentOctaveOffset -= 12;
+  if (currentOctaveOffset < -24) currentOctaveOffset = -24;
+  console.log("Octava actual ", currentOctaveOffset / 12);
+});
+
+fondoUso.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  offsetX = e.clientX - fondoUso.offsetLeft;
+  offsetY = e.clientY - fondoUso.offsetTop;
+  fondoUso.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+  fondoUso.style.cursor = 'grab';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  let x = e.clientX - offsetX;
+  let y = e.clientY - offsetY;
+
+  const maxX = window.innerWidth - fondoUso.offsetWidth;
+  const maxY = window.innerHeight - fondoUso.offsetHeight;
+  x = Math.max(0, Math.min(x, maxX));
+  y = Math.max(0, Math.min(y, maxY));
+
+  fondoUso.style.left = x + 'px';
+  fondoUso.style.top = y + 'px';
+});
+
+  </script>
+
+</body>
+</html>

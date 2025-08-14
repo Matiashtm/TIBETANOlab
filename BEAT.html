@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Piano Roll JS (MVP)</title>
+<style>
+  :root{
+    --bg:#111; --panel:#1b1b1b; --grid:#2a2a2a; --bar:#3a3a3a; --note:#4aa3ff; --noteSel:#ffc14a;
+    --keyWhite:#eee; --keyBlack:#333; --keyLine:#999;
+  }
+  body{
+    margin:0; background:var(--bg); color:#eee; font:14px system-ui,Segoe UI,Roboto,Arial;
+    display:flex; flex-direction:column; height:100vh;
+  }
+  .toolbar{
+    display:flex; gap:12px; align-items:center; padding:10px 12px; background:var(--panel); border-bottom:1px solid #222;
+  }
+  .toolbar label{ opacity:.9 }
+  .toolbar input, .toolbar select, .toolbar button{
+    background:#222; color:#eee; border:1px solid #444; border-radius:6px; padding:6px 8px;
+  }
+  .wrap{
+    display:flex; flex:1; overflow:hidden;
+  }
+  .keyboard{
+    width:70px; background:#000; border-right:1px solid #222; position:relative;
+  }
+  .view{
+    position:relative; flex:1; overflow:hidden; background:#151515;
+  }
+  canvas{ display:block; }
+  .hint{ padding:6px 12px; opacity:.7; background:#0f0f0f; border-top:1px solid #222; font-size:12px }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="playBtn">▶ Play</button>
+    <button id="stopBtn">■ Stop</button>
+    <button id="clearBtn">✖ Limpiar</button>
+    <label>Tempo <input id="tempo" type="number" min="40" max="240" value="120" style="width:64px"></label>
+    <label>Quantize
+      <select id="quantize">
+        <option value="1">1/1</option>
+        <option value="2">1/2</option>
+        <option value="4">1/4</option>
+        <option value="8">1/8</option>
+        <option value="16" selected>1/16</option>
+      </select>
+    </label>
+    <label>Zoom X <input id="zoomX" type="range" min="40" max="240" value="120"></label>
+  </div>
+
+  <div class="wrap">
+    <div class="keyboard"><canvas id="keys" width="70" height="600"></canvas></div>
+    <div class="view">
+      <canvas id="roll" width="1400" height="600"></canvas>
+    </div>
+  </div>
+  <div class="hint">
+    Clic+arrastrar para crear notas • Arrastrar para mover • Arrastrar borde para redimensionar • Clic derecho para borrar • Scroll = desplazar | Shift+Scroll = vertical
+  </div>
+
+<script>
+/* ---------- Configuración base ---------- */
+const OCT_TOP = 7;                 // C7 en la parte superior visual
+const OCT_COUNT = 3;               // cantidad de octavas visibles
+const NOTE_ROW_H = 20;             // alto de fila por semitono
+const KEY_W = 70;                  // ancho área teclado (coincide con canvas keys)
+const TIMELINE_H = 20;             // alto de timeline (parte superior del roll)
+const INIT_ZOOM_X = 120;           // px por negra
+const MEASURES = 8;                // compases visibles
+
+/* ---------- Estado ---------- */
+let pixelsPerBeat = INIT_ZOOM_X;
+let scrollX = 0; // en px
+let scrollY = 0; // en px
+const totalBeats = MEASURES * 4; // 4/4
+const topMidi = (OCT_TOP+1)*12;            // C del octava top (ej. C8 = 96)
+const bottomMidi = topMidi - (OCT_COUNT*12); // rango inferior
+const visibleNotes = [];
+let selectedId = null;
+
+/* ---------- Audio ---------- */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audio = new AudioContext();
+const master = audio.createGain(); master.gain.value = 0.2; master.connect(audio.destination);
+
+function midiToFreq(m){ return 440 * Math.pow(2, (m-69)/12); }
+function previewKey(midi, dur=0.2){
+  const t = audio.currentTime;
+  const o = audio.createOscillator();
+  const g = audio.createGain();
+  o.type = 'sine';
+  o.frequency.value = midiToFreq(midi);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.3, t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g).connect(master);
+  o.start(t); o.stop(t+dur+0.05);
+}
+
+/* ---------- UI Elements ---------- */
+const playBtn = document.getElementById('playBtn');
+const stopBtn = document.getElementById('stopBtn');
+const clearBtn = document.getElementById('clearBtn');
+const tempoEl = document.getElementById('tempo');
+const quantEl = document.getElementById('quantize');
+const zoomEl = document.getElementById('zoomX');
+const keysCv = document.getElementById('keys');
+const rollCv = document.getElementById('roll');
+const kctx = keysCv.getContext('2d');
+const rctx = rollCv.getContext('2d');
+
+/* ---------- Helpers de tiempo/pos ---------- */
+function beatToX(beat){ return beat * pixelsPerBeat - scrollX; }
+function xToBeat(x){ return (x + scrollX) / pixelsPerBeat; }
+function midiToY(m){ return TIMELINE_H + (topMidi - 1 - m) * NOTE_ROW_H - scrollY; } // fila superior es midi=topMidi-1
+function yToMidi(y){ return Math.floor((TIMELINE_H + (topMidi - 1) * NOTE_ROW_H - (y + scrollY)) / NOTE_ROW_H); }
+function quantizeBeat(b){
+  const q = parseInt(quantEl.value,10);
+  const step = 1 / (q/1); // e.g. q=16 -> step=1/16
+  return Math.round(b / step) * step;
+}
+
+/* ---------- Dibujo teclado ---------- */
+function isBlack(midi){
+  const pc = midi % 12;
+  return [1,3,6,8,10].includes(pc);
+}
+function drawKeyboard(){
+  const h = keysCv.height;
+  kctx.clearRect(0,0,KEY_W,h);
+  const top = topMidi-1;
+  for(let m=top; m>=bottomMidi; m--){
+    const y = midiToY(m);
+    // tecla
+    kctx.fillStyle = isBlack(m) ? '#222' : '#eee';
+    kctx.fillRect(0,y,KEY_W,NOTE_ROW_H-1);
+    // borde
+    kctx.strokeStyle = '#999';
+    kctx.beginPath(); kctx.moveTo(0,y+0.5); kctx.lineTo(KEY_W,y+0.5); kctx.stroke();
+    // nombres en C
+    if (m%12===0){ // C
+      kctx.fillStyle = isBlack(m)?'#ddd':'#333';
+      const oct = Math.floor(m/12)-1;
+      kctx.fillText('C'+oct, 6, y+14);
+    }
+  }
+}
+
+/* ---------- Dibujo roll ---------- */
+function drawGrid(){
+  const w = rollCv.width, h = rollCv.height;
+  rctx.clearRect(0,0,w,h);
+
+  // timeline fondo
+  rctx.fillStyle = '#1c1c1c';
+  rctx.fillRect(0,0,w,TIMELINE_H);
+
+  // compases y beats
+  for(let beat=0; beat<=totalBeats; beat++){
+    const x = beatToX(beat);
+    if (x < -50 || x > w+50) continue;
+    const isBar = (beat%4===0);
+    rctx.strokeStyle = isBar ? '#3a3a3a' : '#2a2a2a';
+    rctx.beginPath();
+    rctx.moveTo(x+0.5, 0);
+    rctx.lineTo(x+0.5, h);
+    rctx.stroke();
+
+    if (isBar){
+      rctx.fillStyle = '#999';
+      rctx.fillText('| '+(beat/4+1), x+4, 12);
+    }
+  }
+
+  // filas de notas (zebra por octava)
+  for(let m=topMidi-1; m>=bottomMidi; m--){
+    const y = midiToY(m);
+    const inOct = m%12;
+    // sombrear octavas
+    if (inOct===0){ // C
+      rctx.fillStyle = 'rgba(255,255,255,0.03)';
+      rctx.fillRect(0, y, w, NOTE_ROW_H*12);
+    }
+    // dark para black keys
+    if (isBlack(m)){
+      rctx.fillStyle = 'rgba(255,255,255,0.02)';
+      rctx.fillRect(0,y,w,NOTE_ROW_H);
+    }
+    // línea de fila
+    rctx.strokeStyle = '#202020';
+    rctx.beginPath(); rctx.moveTo(0,y+0.5); rctx.lineTo(w,y+0.5); rctx.stroke();
+  }
+}
+
+function drawNotes(){
+  const w = rollCv.width;
+  visibleNotes.forEach(n=>{
+    const x = beatToX(n.start);
+    const y = midiToY(n.midi);
+    const noteW = Math.max(3, n.dur * pixelsPerBeat);
+    if (x> w || x+noteW < 0) return; // culling
+    rctx.fillStyle = (n.id===selectedId) ? 'var(--noteSel)' : 'var(--note)';
+    rctx.fillRect(x, y+2, noteW, NOTE_ROW_H-4);
+    // borde
+    rctx.strokeStyle = 'rgba(0,0,0,.6)';
+    rctx.strokeRect(x+0.5, y+2.5, noteW-1, NOTE_ROW_H-5);
+    // handle derecho
+    rctx.fillStyle = 'rgba(255,255,255,0.7)';
+    rctx.fillRect(x+noteW-4, y+4, 3, NOTE_ROW_H-8);
+  });
+}
+
+function render(){
+  drawKeyboard();
+  drawGrid();
+  drawNotes();
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+/* ---------- Interacción mouse ---------- */
+const MouseMode = { Idle:0, Creating:1, Dragging:2, Resizing:3 };
+let mode = MouseMode.Idle;
+let dragDxBeat = 0;
+let dragDySemis = 0;
+let createStartBeat = 0;
+let createMidi = 0;
+let hitId = null;
+
+function hitTestNote(mx,my){
+  // devolver id de nota y si está en borde derecho (para resize)
+  for(let i=visibleNotes.length-1; i>=0; i--){ // de arriba hacia abajo para priorizar última dibujada
+    const n = visibleNotes[i];
+    const x = beatToX(n.start);
+    const y = midiToY(n.midi);
+    const w = n.dur * pixelsPerBeat;
+    if (mx>=x && mx<=x+w && my>=y && my<=y+NOTE_ROW_H){
+      const onEdge = (mx > x+w-6);
+      return { id:n.id, onEdge };
+    }
+  }
+  return null;
+}
+
+rollCv.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const rect = rollCv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const hit = hitTestNote(mx,my);
+  if (hit){
+    const idx = visibleNotes.findIndex(n=>n.id===hit.id);
+    if (idx>=0) visibleNotes.splice(idx,1);
+    if (selectedId===hit.id) selectedId=null;
+  }
+});
+
+rollCv.addEventListener('mousedown', e=>{
+  if (audio.state === 'suspended') audio.resume();
+  const rect = rollCv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  if (my < TIMELINE_H) return; // área timeline (podés implementar scrub más adelante)
+
+  const hit = hitTestNote(mx,my);
+  if (hit){
+    selectedId = hit.id;
+    const n = visibleNotes.find(x=>x.id===hit.id);
+    if (hit.onEdge){
+      mode = MouseMode.Resizing;
+    }else{
+      mode = MouseMode.Dragging;
+      dragDxBeat = xToBeat(mx) - n.start;
+      dragDySemis = yToMidi(my) - n.midi;
+    }
+  }else{
+    // crear
+    mode = MouseMode.Creating;
+    createStartBeat = quantizeBeat(xToBeat(mx));
+    createMidi = Math.max(bottomMidi, Math.min(topMidi-1, yToMidi(my)));
+    const id = crypto.randomUUID();
+    visibleNotes.push({ id, midi:createMidi, start:createStartBeat, dur:quantizeBeat(1/4) });
+    selectedId = id;
+  }
+});
+
+rollCv.addEventListener('mousemove', e=>{
+  const rect = rollCv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  // cursor feedback
+  const hit = hitTestNote(mx,my);
+  rollCv.style.cursor = (hit && hit.onEdge) ? 'ew-resize' : 'default';
+
+  if (mode===MouseMode.Creating){
+    const n = visibleNotes.find(x=>x.id===selectedId);
+    const endBeat = Math.max(createStartBeat + 1/16, quantizeBeat(xToBeat(mx)));
+    n.dur = Math.max(1/16, endBeat - createStartBeat);
+  }else if (mode===MouseMode.Dragging){
+    const n = visibleNotes.find(x=>x.id===selectedId);
+    const newStart = quantizeBeat(xToBeat(mx) - dragDxBeat);
+    const newMidi = Math.max(bottomMidi, Math.min(topMidi-1, yToMidi(my) - dragDySemis));
+    n.start = Math.max(0, Math.min(totalBeats - n.dur, newStart));
+    n.midi = newMidi;
+  }else if (mode===MouseMode.Resizing){
+    const n = visibleNotes.find(x=>x.id===selectedId);
+    const end = quantizeBeat(xToBeat(mx));
+    n.dur = Math.max(1/16, end - n.start);
+    n.dur = Math.min(n.dur, totalBeats - n.start);
+  }
+});
+
+document.addEventListener('mouseup', ()=>{
+  if (mode!==MouseMode.Idle){
+    mode = MouseMode.Idle;
+  }
+});
+
+/* ---------- Scroll con rueda ---------- */
+rollCv.addEventListener('wheel', e=>{
+  e.preventDefault();
+  if (e.shiftKey){
+    // vertical
+    scrollY = Math.max(0, Math.min(scrollY + e.deltaY, (OCT_COUNT*12*NOTE_ROW_H) - (rollCv.height - TIMELINE_H)));
+  }else{
+    // horizontal
+    const maxX = totalBeats*pixelsPerBeat - rollCv.width + 40;
+    scrollX = Math.max(0, Math.min(scrollX + e.deltaY, Math.max(0, maxX)));
+  }
+}, { passive:false });
+
+/* ---------- Interacción teclado (preview teclas) ---------- */
+keysCv.addEventListener('mousedown', e=>{
+  const rect = keysCv.getBoundingClientRect();
+  const my = e.clientY - rect.top;
+  const midi = Math.max(bottomMidi, Math.min(topMidi-1, yToMidi(my)));
+  previewKey(midi);
+});
+
+/* ---------- Controles ---------- */
+zoomEl.addEventListener('input', ()=>{
+  const cxBeat = xToBeat(rollCv.width/2); // mantener el centro al hacer zoom
+  pixelsPerBeat = parseInt(zoomEl.value,10);
+  scrollX = Math.max(0, cxBeat*pixelsPerBeat - rollCv.width/2);
+});
+
+clearBtn.addEventListener('click', ()=>{
+  visibleNotes.length = 0; selectedId = null;
+});
+
+/* ---------- Reproducción ---------- */
+let playing = false;
+let playStartTime = 0;
+let schedulerTimer = null;
+
+function scheduleNotes(){
+  const bpm = parseFloat(tempoEl.value)||120;
+  const secPerBeat = 60/bpm;
+  const now = audio.currentTime;
+  const elapsed = now - playStartTime; // segundos desde inicio
+  const lookAhead = 0.2; // segundos
+  const beatNow = elapsed / secPerBeat;
+
+  // programar notas dentro de la ventana (beatNow .. beatNow + lookAhead/secPerBeat)
+  const windowEnd = beatNow + lookAhead/secPerBeat;
+
+  visibleNotes.forEach(n=>{
+    const startSec = n.start * secPerBeat + playStartTime;
+    const endSec = (n.start + n.dur) * secPerBeat + playStartTime;
+    if (startSec >= now && startSec < now + lookAhead){
+      const o = audio.createOscillator();
+      const g = audio.createGain();
+      o.type = 'triangle';
+      o.frequency.value = midiToFreq(n.midi);
+      // ADSR simple
+      const t = startSec;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.35, t+0.01);
+      g.gain.setValueAtTime(0.35, endSec-0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, endSec);
+      o.connect(g).connect(master);
+      o.start(t); o.stop(endSec+0.05);
+    }
+  });
+
+  if (playing){
+    schedulerTimer = setTimeout(scheduleNotes, lookAhead*500); // reprograma
+  }
+}
+
+playBtn.addEventListener('click', ()=>{
+  if (playing) return;
+  if (audio.state==='suspended') audio.resume();
+  playing = true;
+  playStartTime = audio.currentTime;
+  scheduleNotes();
+});
+
+stopBtn.addEventListener('click', ()=>{
+  playing = false;
+  if (schedulerTimer) clearTimeout(schedulerTimer);
+  schedulerTimer = null;
+});
+
+/* ---------- Inicialización ---------- */
+(function init(){
+  // tamaño canvas según viewport
+  function resize(){
+    const h = Math.min(window.innerHeight-120, 700);
+    keysCv.height = h; rollCv.height = h;
+    rollCv.width = Math.min(window.innerWidth-KEY_W, 1600);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // demo: poner unas notas
+  let idc = 0;
+  function add(midi,start,dur){
+    visibleNotes.push({ id:'n'+(++idc), midi,start,dur });
+  }
+  add(72, 0, 0.5); add(76, 0.5, 0.5); add(79, 1, 1);
+  add(67, 2, 2); add(60, 4, 4);
+})();
+</script>
+</body>
+</html>

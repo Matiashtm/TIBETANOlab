@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Sampler WAV con Pitch (C3 base)</title>
+<script src="https://cdn.jsdelivr.net/npm/nexusui@2.0.10/dist/NexusUI.min.js"></script>
+<style>
+  body {
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  #BANNER {
+    border: 4px solid #fff; margin: 10px; padding: 10px;
+    text-align: center; font-size: 22px; border-radius: 10px;
+  }
+  #MAIN {
+    flex: 1; display: flex; gap: 10px; padding: 10px;
+  }
+  #PRESETS_CONT {
+    border: 4px solid #fff; border-radius: 20px; padding: 10px;
+    width: 300px; display: flex; flex-direction: column; align-items: stretch;
+    overflow-y: auto; margin-left: 5%;
+  }
+  .PRESETS_BTN {
+    border: 3px solid #fff; border-radius: 10px; background: #b00; color: #fff;
+    padding: 10px; margin: 6px 0; text-align: left; cursor: pointer;
+    font-size: 16px;
+  }
+  #PANEL_SOUND {
+    flex: 1; border: 4px solid #fff; border-radius: 40px;
+    display: flex; flex-direction: column; gap: 16px;
+    align-items: center; justify-content: center; padding: 20px; max-width: 900px;
+  }
+  #CONTROLES_DIV {
+    width: 100%; display: flex; justify-content: center; flex-wrap: wrap;
+    gap: 10px; border: 2px dashed #555; border-radius: 20px; padding: 10px;
+  }
+  .control-group { display: flex; flex-direction: column; align-items: center; width: 80px; }
+  .control-group::before { content: attr(data-label); margin-bottom: 6px; font-size: 12px; opacity: 0.85; }
+  #PIANO_HINT {
+    font-size: 14px; opacity: 0.9; margin-top: 6px; text-align: center;
+  }
+  #AUDIO_UNLOCK {
+    border: 2px solid #fff; border-radius: 10px; padding: 10px 16px;
+    background: #0a0; color: #fff; cursor: pointer; font-size: 16px;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="BANNER">Sampler WAV con Pitch fijo (C3 como base). Servir por HTTP.</div>
+
+<div id="MAIN">
+  <div id="PRESETS_CONT">
+    <button class="PRESETS_BTN" onclick="setWavSelect(1)">Cargar: MUSSETE N364</button>
+    <button class="PRESETS_BTN" onclick="setWavSelect(2)">Cargar: ACORDEON KAWAI FS690</button>
+    <button class="PRESETS_BTN" onclick="setWavSelect(3)">Cargar: HONKYTONK XP10</button>
+    <hr />
+  </div>
+
+  <div id="PANEL_SOUND">
+    <div id="CONTROLES_DIV">
+      <div class="control-group" data-label="VOLUMEN"><div id="volumeKnob"></div></div>
+      <div class="control-group" data-label="ATTACK"><div id="attackKnob"></div></div>
+      <div class="control-group" data-label="DECAY"><div id="decayKnob"></div></div>
+      <div class="control-group" data-label="SUSTAIN"><div id="sustainKnob"></div></div>
+      <div class="control-group" data-label="RELEASE"><div id="releaseKnob"></div></div>
+      <div class="control-group" data-label="CUTOFF"><div id="cutoffKnob"></div></div>
+    </div>
+    <div id="PIANO_HINT">
+      Teclas: a,w,s,e,d,f,t,g,y,h,u,j,k → C3 a C4<br/>
+      Mantener presionada para sustain, soltar para release.
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+
+
+/* ========= Audio ========= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioBuffer = null;
+
+async function unlockAudio(){
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+}
+
+/* ========= Knobs ========= */
+const volumeKnob  = new Nexus.Dial('#volumeKnob',  {size:[60,60], min:0, max:1, step:0.01, value:0.5});
+const attackKnob  = new Nexus.Dial('#attackKnob',  {size:[60,60], min:0, max:1, step:0.01, value:0.03});
+const decayKnob   = new Nexus.Dial('#decayKnob',   {size:[60,60], min:0, max:1, step:0.01, value:0.15});
+const sustainKnob = new Nexus.Dial('#sustainKnob', {size:[60,60], min:0, max:1, step:0.01, value:0.7});
+const releaseKnob = new Nexus.Dial('#releaseKnob', {size:[60,60], min:0, max:3, step:0.01, value:0.4});
+const cutoffKnob  = new Nexus.Dial('#cutoffKnob',  {size:[60,60], min:100, max:12000, step:1, value:6000});
+[volumeKnob, attackKnob, decayKnob, sustainKnob, releaseKnob, cutoffKnob].forEach(k=>{
+  k.colorize("accent","#6B0505"); k.colorize("fill","#222");
+});
+
+/* ========= Presets (archivos) ========= */
+// Si tus WAV están en subcarpeta, poné por ejemplo: const SAMPLES_PATH = "wavs/";
+const SAMPLES_PATH = ""; // misma carpeta que el HTML
+
+let WAV_SELECT = null; 
+const wavPorNumero = {
+  1: "MUSSETE N364",
+  2: "ACORDEON KAWAI FS690",
+  3: "HONKYTONK XP10"
+};
+
+// Si quieres un mapping de imagenes:
+const bgPorNumero = {
+  1: "img/mussete.png",
+  2: "img/kawai.png",
+  3: "img/honkytonk.png"
+};
+
+window.cargarWav = async function(wavFile) {
+  try {
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const res = await fetch(wavFile);
+    if (!res.ok) throw new Error("HTTP " + res.status + " " + res.statusText);
+    const buffer = await res.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(buffer);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+window.setWavSelect = function(num) {
+  WAV_SELECT = num;
+  
+  // Cargar WAV
+  const name = wavPorNumero[WAV_SELECT];
+  if (!name){ return; }
+  const wavFile = SAMPLES_PATH + encodeURIComponent(name) + ".wav";
+  cargarWav(wavFile);
+
+  // Cambiar background del div
+  const bgDiv = document.getElementById("backgroundDiv");
+  const bgImg = bgPorNumero[WAV_SELECT];
+  if(bgDiv && bgImg){
+    bgDiv.style.backgroundImage = `url('${bgImg}')`;
+    bgDiv.style.backgroundSize = "cover";        // para cubrir todo el div
+    bgDiv.style.backgroundPosition = "center";   // centrar imagen
+  }
+};
+
+/* ========= Teclado y síntesis ========= */
+const activeNotes = new Map();
+
+// QWERTY → semitonos desde C3 (0 = C3)
+const keyToSemitone = {
+  'a': 0,  // C3
+  'w': 1,  // C#3
+  's': 2,  // D3
+  'e': 3,  // D#3
+  'd': 4,  // E3
+  'f': 5,  // F3
+  't': 6,  // F#3
+  'g': 7,  // G3
+  'y': 8,  // G#3
+  'h': 9,  // A3
+  'u': 10, // A#3
+  'j': 11, // B3
+  'k': 12  // C4
+};
+
+function startNoteFromKey(key) {
+  if (!audioBuffer) { return; }
+  if (!keyToSemitone.hasOwnProperty(key)) return;
+  if (activeNotes.has(key)) return; // evita repetición en key repeat
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(parseFloat(cutoffKnob.value), audioCtx.currentTime);
+
+  const gainNode = audioCtx.createGain();
+  source.connect(filter).connect(gainNode).connect(audioCtx.destination);
+
+  // Pitch desde C3:
+  const semitoneOffset = keyToSemitone[key];
+  source.playbackRate.value = Math.pow(2, semitoneOffset / 12);
+
+  // ADSR
+  const now = audioCtx.currentTime;
+  const volume  = parseFloat(volumeKnob.value);
+  const attack  = parseFloat(attackKnob.value);
+  const decay   = parseFloat(decayKnob.value);
+  const sustain = parseFloat(sustainKnob.value);
+
+  gainNode.gain.cancelScheduledValues(now);
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(volume, now + attack);
+  gainNode.gain.linearRampToValueAtTime(volume * sustain, now + attack + decay);
+
+  source.start(now);
+  activeNotes.set(key, { source, gainNode });
+}
+
+function stopNoteFromKey(key) {
+  const note = activeNotes.get(key);
+  if (!note) return;
+
+  activeNotes.delete(key);
+  const now = audioCtx.currentTime;
+  const release = parseFloat(releaseKnob.value);
+
+  note.gainNode.gain.cancelScheduledValues(now);
+  note.gainNode.gain.setValueAtTime(note.gainNode.gain.value, now);
+  note.gainNode.gain.linearRampToValueAtTime(0, now + release);
+  // Detenemos un pelín después del release
+  note.source.stop(now + release + 0.03);
+}
+
+/* ========= Eventos ========= */
+document.addEventListener('keydown', async (e) => {
+  // Desbloqueo de audio en la primera interacción
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  const key = e.key.toLowerCase();
+  // Evitar scroll con espacio/flechas si lo quisieras mapear luego
+  if ([' '].includes(e.key)) e.preventDefault();
+
+  // Evita auto-repeat (cuando se mantiene pulsada)
+  if (e.repeat) return;
+
+  startNoteFromKey(key);
+});
+
+document.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  stopNoteFromKey(key);
+});
+</script>
+
+</body>
+</html>

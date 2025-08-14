@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Mini-DAW: Sampler + Piano Roll + Mixer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- MP3 encoder -->
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#131a22; --accent:#6b9cff; --text:#e8eef5; --muted:#8ba0b3;
+    --ok:#2ecc71; --warn:#f1c40f; --danger:#ff5a5f;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:linear-gradient(180deg,#0b0f14 0%, #0e141b 100%); color:var(--text);
+    font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #0f2030;
+    background:rgba(255,255,255,0.02); backdrop-filter: blur(8px);
+  }
+  header .brand{font-weight:700; letter-spacing:.5px}
+  header .sp{flex:1}
+  header .btn{padding:8px 12px; border:1px solid #18324a; border-radius:12px; background:#0f1620; color:var(--text); cursor:pointer}
+  header .btn:hover{border-color:#29527a}
+  main{flex:1; display:grid; grid-template-columns: 260px 1fr; gap:12px; padding:12px; overflow:hidden}
+  /* Left : instruments */
+  #left{
+    background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:12px; display:flex; flex-direction:column;
+    overflow:auto; min-height:0;
+  }
+  #left h3{margin:0 0 8px 0; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
+  .inst-btn{
+    width:100%; padding:10px 12px; margin-bottom:8px; border:1px dashed #2a3a4d; background:#0e1520; color:var(--text);
+    border-radius:12px; text-align:left; cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+  }
+  .inst-btn:hover{border-style:solid; border-color:#335e98; background:#111b2a}
+  .tag{font-size:11px; color:#a7bed3; padding:2px 6px; border:1px solid #2a3a4d; border-radius:999px}
+  /* Center : piano roll + mixer wrapper */
+  #center{display:grid; grid-template-rows: auto 1fr auto; gap:12px; min-height:0}
+  /* Piano roll toolbar */
+  #rollbar{
+    background:var(--panel); border:1px solid #152231; border-radius:var(--radius);
+    padding:10px; display:flex; align-items:center; gap:10px;
+  }
+  .seg{display:flex; gap:8px; align-items:center}
+  .seg label{font-size:12px; color:var(--muted)}
+  .chips{display:flex; gap:6px; flex-wrap:wrap}
+  .chip{
+    padding:6px 10px; border:1px solid #244059; background:#0f1823; border-radius:10px; cursor:pointer; font-size:12px; color:#cfe0f3;
+  }
+  .chip.active{border-color:var(--accent); background:rgba(107,156,255,.15)}
+  .playbtn{
+    padding:10px 14px; border:1px solid #23425e; background:#122033; color:var(--text);
+    border-radius:12px; cursor:pointer; font-weight:600;
+  }
+  .playbtn.playing{border-color:var(--ok); color:#eafff1}
+  /* Piano roll canvas */
+  #rollwrap{
+    background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:10px; position:relative; min-height:0;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  #rollCanvas{width:100%; height:320px; border-radius:10px; background:#0f141b; border:1px solid #213044}
+  .hint{font-size:12px; color:#9fb4c8}
+  /* Mixer */
+  #mixer{
+    background:var(--panel); border:1px solid #152231; border-radius:var(--radius);
+    padding:12px; display:flex; gap:12px; overflow:auto;
+  }
+  .strip{
+    min-width:160px; background:#0f1620; border:1px solid #203047; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;
+  }
+  .strip h4{margin:0; font-size:13px}
+  .fader{appearance:none; width:100%; height:6px; background:#1e2a3a; border-radius:999px; outline:none}
+  .fader::-webkit-slider-thumb{appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); cursor:pointer}
+  .small{font-size:11px; color:#a9bfd3}
+  .meter{height:6px; background:linear-gradient(90deg,#2ecc71,#f1c40f,#ff5a5f); border-radius:999px; opacity:.6}
+  /* Instrument window (draggable) */
+  .inst-win{
+    position:fixed; top:120px; left:120px; width:420px; border-radius:16px; overflow:hidden; border:1px solid #264562;
+    background:#0d1218; box-shadow:0 20px 60px rgba(0,0,0,.5); z-index:50;
+  }
+  .inst-title{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(0,0,0,.35);
+    border-bottom:1px solid #1b2b3c; cursor:move; user-select:none;
+  }
+  .inst-title .name{font-weight:700}
+  .inst-title .x{width:28px; height:28px; display:grid; place-items:center; border:1px solid #2b4157; border-radius:8px; cursor:pointer}
+  .inst-bg{height:200px; background:#111; background-size:cover; background-position:center;}
+  .inst-ctrls{display:flex; gap:10px; padding:10px; flex-wrap:wrap}
+  .knob{flex:1 1 100px; background:#0f1620; border:1px solid #223247; border-radius:12px; padding:8px}
+  .knob label{display:block; font-size:11px; color:#9ab0c6; margin-bottom:6px}
+  .knob input{width:100%}
+  .row{display:flex; gap:10px; align-items:center}
+  .kbdhint{padding:8px 10px; color:#cfe0f3; font-size:12px}
+  /* playhead overlay */
+  .playhead{
+    position:absolute; top:10px; left:10px; right:10px; height:0; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">TIBETANO BEATS LABS</div>
+  <div class="sp"></div>
+  <button id="recBtn" class="btn">● Grabar en vivo</button>
+  <button id="stopRecBtn" class="btn">⏹ Detener & Descargar</button>
+  <button id="exportMp3Btn" class="btn">⬇ Exportar Arreglo a MP3</button>
+</header>
+
+<main>
+  <!-- LEFT: instrumentos -->
+  <aside id="left">
+    <h3>Instrumentos</h3>
+    <!-- Define aquí tus instrumentos -->
+    <button class="inst-btn" data-id="1">ACORDEON KAWAI FS690 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="2">ACUSTIC BASSOON <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="3">ACUSTIC CLARINET <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="4">ACUSTIC MUSSETTE <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="5">ACUSTIC PIANO <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="6">BAGPIPE XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="7">BANDONEON XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="8">BIG MINI <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="9">BRASS <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="10">BUSY BOY <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="11">CAMPANAS <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="12">CANIAS <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="13">DISTGT XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="14">ELECTRIC PIANO <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="15">HAMMOND SYNTHE <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="16">HONKYTONK XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="17">MONOLEAD N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="18">MUSSETE N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="19">NEW KAWAI <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="20">ORGANO LESLIE <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="21">ORGANO <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="22">OUTPUT C3 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="23">P5POLY XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="24">PAN FLAUTE N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="25">PIZZICATO <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="26">POLYSYNTH D-50 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="27">RODES1 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="28">SHAMISEN N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="29">SITAR XP10 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="30">SPLITSYNC N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="31">SQUARE WAVE N364 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="32">SUPER BX3 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="33">TB 03 <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="34">TB BANDONEON <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="35">TB KAWAI <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="36">TB MONOLEAD <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="37">TB MUSSETE <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="38">TENOR SAX <span class="tag">WAV</span></button>
+    <button class="inst-btn" data-id="39">X PIANO N364 <span class="tag">WAV</span></button>
+    <div class="small" style="margin-top:8px">
+      Haz clic en un instrumento para abrir su ventana y tocar con el teclado.<br>
+      Las notas nuevas en el Piano Roll usarán el instrumento activo.
+    </div>
+  </aside>
+
+  <!-- CENTER: piano roll + mixer -->
+  <section id="center">
+    <div id="rollbar">
+      <button id="playBtn" class="playbtn">▶ Play</button>
+      <div class="seg"><label>Tempo</label>
+        <input id="tempo" type="number" min="40" max="220" value="120" class="btn" style="width:80px;text-align:center">
+      </div>
+      <div class="seg"><label>Grid</label>
+        <div id="gridChips" class="chips"></div>
+      </div>
+      <div class="seg"><label>Long canción (compases)</label>
+        <input id="bars" type="number" min="1" max="64" value="4" class="btn" style="width:80px;text-align:center">
+      </div>
+      <div class="sp"></div>
+      <div class="seg small">Click para crear nota · Arrastra borde para estirar · Arrastra centro para mover</div>
+    </div>
+
+    <div id="rollwrap">
+      <canvas id="rollCanvas" width="1200" height="320"></canvas>
+      <div class="hint">Teclado: A W S E D F T G Y H U J K → C3..C4</div>
+    </div>
+
+    <div id="mixer">
+      <!-- strips se crean dinámicamente por instrumento -->
+    </div>
+  </section>
+</main>
+
+<!-- ========= TEMPLATES (JS creará estas ventanas según instrumento) ========= -->
+
+<script>
+/* ======================= AUDIO CORE ======================= */
+const audio = {
+  ctx: new (window.AudioContext || window.webkitAudioContext)(),
+  master: null,
+  mediaDest: null,
+  recorder: null,
+  chunks: [],
+  buffers: {}, // instrumentId -> AudioBuffer (WAV)
+  instruments: {
+  1: {name:"ACORDEON KAWAI FS690", wav:"wavs/ACORDEON KAWAI FS690.wav", bg:"imgs/ACORDEON KAWAI FS690.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    2: {name:"ACUSTIC BASSOON", wav:"wavs/ACUSTIC BASSOON.wav", bg:"imgs/ACUSTIC BASSOON.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    3: {name:"ACUSTIC CLARINET", wav:"wavs/ACUSTIC CLARINET.wav", bg:"imgs/ACUSTIC CLARINET.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    4: {name:"ACUSTIC MUSSETTE", wav:"wavs/ACUSTIC MUSSETTE.wav", bg:"imgs/ACUSTIC MUSSETTE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    5: {name:"ACUSTIC PIANO", wav:"wavs/ACUSTIC PIANO.wav", bg:"imgs/ACUSTIC PIANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    6: {name:"BAGPIPE XP10", wav:"wavs/BAGPIPE XP10.wav", bg:"imgs/BAGPIPE XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    7: {name:"BANDONEON XP10", wav:"wavs/BANDONEON XP10.wav", bg:"imgs/BANDONEON XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    8: {name:"BIG MINI", wav:"wavs/BIG MINI.wav", bg:"imgs/BIG MINI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    9: {name:"BRASS", wav:"wavs/BRASS.wav", bg:"imgs/BRASS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    10: {name:"BUSY BOY", wav:"wavs/BUSY BOY.wav", bg:"imgs/BUSY BOY.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    11: {name:"CAMPANAS", wav:"wavs/CAMPANAS.wav", bg:"imgs/CAMPANAS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    12: {name:"CANIAS", wav:"wavs/CANIAS.wav", bg:"imgs/CANIAS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    13: {name:"DISTGT XP10", wav:"wavs/DISTGT XP10.wav", bg:"imgs/DISTGT XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    14: {name:"ELECTRIC PIANO", wav:"wavs/ELECTRIC PIANO.wav", bg:"imgs/ELECTRIC PIANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    15: {name:"HAMMOND SYNTHE", wav:"wavs/HAMMOND SYNTHE.wav", bg:"imgs/HAMMOND SYNTHE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    16: {name:"HONKYTONK XP10", wav:"wavs/HONKYTONK XP10.wav", bg:"imgs/HONKYTONK XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    17: {name:"MONOLEAD N364", wav:"wavs/MONOLEAD N364.wav", bg:"imgs/MONOLEAD N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    18: {name:"MUSSETE N364", wav:"wavs/MUSSETE N364.wav", bg:"imgs/MUSSETE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    19: {name:"NEW KAWAI", wav:"wavs/NEW KAWAI.wav", bg:"imgs/NEW KAWAI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    20: {name:"ORGANO LESLIE", wav:"wavs/ORGANO LESLIE.wav", bg:"imgs/ORGANO LESLIE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    21: {name:"ORGANO", wav:"wavs/ORGANO.wav", bg:"imgs/ORGANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    22: {name:"OUTPUT C3", wav:"wavs/OUTPUT C3.wav", bg:"imgs/OUTPUT C3.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    23: {name:"P5POLY XP10", wav:"wavs/P5POLY XP10.wav", bg:"imgs/P5POLY XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    24: {name:"PAN FLAUTE N364", wav:"wavs/PAN FLAUTE N364.wav", bg:"imgs/PAN FLAUTE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    25: {name:"PIZZICATO", wav:"wavs/PIZZICATO.wav", bg:"imgs/PIZZICATO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    26: {name:"POLYSYNTH D-50", wav:"wavs/POLYSYNTH D-50.wav", bg:"imgs/POLYSYNTH D-50.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    27: {name:"RODES1", wav:"wavs/RODES1.wav", bg:"imgs/RODES1.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    28: {name:"SHAMISEN N364", wav:"wavs/SHAMISEN N364.wav", bg:"imgs/SHAMISEN N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    29: {name:"SITAR XP10", wav:"wavs/SITAR XP10.wav", bg:"imgs/SITAR XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    30: {name:"SPLITSYNC N364", wav:"wavs/SPLITSYNC N364.wav", bg:"imgs/SPLITSYNC N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    31: {name:"SQUARE WAVE N364", wav:"wavs/SQUARE WAVE N364.wav", bg:"imgs/SQUARE WAVE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    32: {name:"SUPER BX3", wav:"wavs/SUPER BX3.wav", bg:"imgs/SUPER BX3.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    33: {name:"TB 03", wav:"wavs/TB 03.wav", bg:"imgs/TB 03.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    34: {name:"TB BANDONEON", wav:"wavs/TB BANDONEON.wav", bg:"imgs/TB BANDONEON.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    35: {name:"TB KAWAI", wav:"wavs/TB KAWAI.wav", bg:"imgs/TB KAWAI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    36: {name:"TB MONOLEAD", wav:"wavs/TB MONOLEAD.wav", bg:"imgs/TB MONOLEAD.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    37: {name:"TB MUSSETE", wav:"wavs/TB MUSSETE.wav", bg:"imgs/TB MUSSETE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    38: {name:"TENOR SAX", wav:"wavs/TENOR SAX.wav", bg:"imgs/TENOR SAX.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    39: {name:"X PIANO N364", wav:"wavs/X PIANO N364.wav", bg:"imgs/X PIANO N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0}
+  
+  },
+  mixer: {}, // instrumentId -> {gainNode, panNode, meterVal}
+  init(){
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 1;
+    const pan = this.ctx.createStereoPanner(); // master center
+    this.master.connect(pan).connect(this.ctx.destination);
+    // grabador
+    this.mediaDest = this.ctx.createMediaStreamDestination();
+    this.master.connect(this.mediaDest);
+  },
+  async loadBuffer(instId){
+    const inst = this.instruments[instId];
+    if (!inst || this.buffers[instId]) return;
+    const res = await fetch(inst.wav);
+    if (!res.ok) throw new Error("No se pudo cargar: "+inst.wav);
+    const arr = await res.arrayBuffer();
+    this.buffers[instId] = await this.ctx.decodeAudioData(arr);
+  },
+  noteOn({instId, semitoneFromC3, when=0, destNode=null, adsrOverride=null, cutoffOverride=null}){
+    const ctx = this.ctx;
+    const buf = this.buffers[instId];
+    if (!buf) return null;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buf;
+    source.playbackRate.value = Math.pow(2, semitoneFromC3/12);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = cutoffOverride ?? this.instruments[instId].cutoff;
+
+    const amp = ctx.createGain();
+    const gnode = destNode || this.mixer[instId]?.gainNode || this.master;
+
+    source.connect(filter).connect(amp).connect(gnode);
+
+    // ADSR
+    const A = adsrOverride?.attack  ?? this.instruments[instId].adsr.attack;
+    const D = adsrOverride?.decay   ?? this.instruments[instId].adsr.decay;
+    const S = adsrOverride?.sustain ?? this.instruments[instId].adsr.sustain;
+    const R = adsrOverride?.release ?? this.instruments[instId].adsr.release;
+    const maxGain = this.instruments[instId].gain;
+
+    const t0 = ctx.currentTime + when;
+    amp.gain.cancelScheduledValues(t0);
+    amp.gain.setValueAtTime(0, t0);
+    amp.gain.linearRampToValueAtTime(maxGain, t0 + A);
+    amp.gain.linearRampToValueAtTime(maxGain * S, t0 + A + D);
+
+    source.start(t0);
+    return {source, amp, R, start:t0};
+  },
+  noteOff(handle){
+    if (!handle) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const g = handle.amp.gain;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(0, now + handle.R);
+    // asegurar que la fuente se detenga
+    if(handle.source){
+      handle.source.stop(now + handle.R + 0.05); // +50ms de buffer
+    }
+  }
+
+};
+audio.init();
+
+/* ======================= MIXER UI ======================= */
+const mixerEl = document.getElementById('mixer');
+function makeStrip(instId){
+  const inst = audio.instruments[instId];
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  strip.innerHTML = `
+    <h4>${inst.name}</h4>
+    <div class="small">Volumen</div>
+    <input class="fader" type="range" min="0" max="1" step="0.01" value="${inst.gain}" data-vol="${instId}">
+    <div class="small">Pan</div>
+    <input class="fader" type="range" min="-1" max="1" step="0.01" value="${inst.pan}" data-pan="${instId}">
+    <div class="small">Nivel</div>
+    <div class="meter" id="meter-${instId}"></div>
+  `;
+  mixerEl.appendChild(strip);
+
+  // nodes
+  const gainNode = audio.ctx.createGain(); gainNode.gain.value = inst.gain;
+  const panNode = audio.ctx.createStereoPanner(); panNode.pan.value = inst.pan;
+  gainNode.connect(panNode).connect(audio.master);
+  audio.mixer[instId] = {gainNode, panNode, meterVal:0};
+
+  strip.querySelector('[data-vol]').addEventListener('input', e=>{
+    const v = parseFloat(e.target.value);
+    inst.gain = v;
+    audio.mixer[instId].gainNode.gain.value = v;
+  });
+  strip.querySelector('[data-pan]').addEventListener('input', e=>{
+    const p = parseFloat(e.target.value);
+    inst.pan = p;
+    audio.mixer[instId].panNode.pan.value = p;
+  });
+}
+
+Object.keys(audio.instruments).forEach(id=> makeStrip(+id));
+
+/* ======================= INSTRUMENT WINDOW (DRAGGABLE) ======================= */
+let currentInstrumentId = null;
+function openInstrument(instId){
+  const inst = audio.instruments[instId];
+  currentInstrumentId = instId;
+
+  const win = document.createElement('div');
+  win.className = 'inst-win';
+  win.innerHTML = `
+    <div class="inst-title">
+      <div class="name">${inst.name}</div>
+      <div class="x" title="Cerrar">✕</div>
+    </div>
+    <div class="inst-bg" style="background-image:url('${inst.bg || ""}')"></div>
+    <div class="inst-ctrls">
+      <div class="knob"><label>Gain</label><input type="range" min="0" max="1" step="0.01" value="${inst.gain}" data-k="gain"></div>
+      <div class="knob"><label>Attack</label><input type="range" min="0" max="2" step="0.01" value="${inst.adsr.attack}" data-k="attack"></div>
+      <div class="knob"><label>Decay</label><input type="range" min="0" max="2" step="0.01" value="${inst.adsr.decay}" data-k="decay"></div>
+      <div class="knob"><label>Sustain</label><input type="range" min="0" max="1" step="0.01" value="${inst.adsr.sustain}" data-k="sustain"></div>
+      <div class="knob"><label>Release</label><input type="range" min="0" max="4" step="0.01" value="${inst.adsr.release}" data-k="release"></div>
+      <div class="knob"><label>Cutoff</label><input type="range" min="100" max="12000" step="1" value="${inst.cutoff}" data-k="cutoff"></div>
+    </div>
+    <div class="kbdhint">Toca con el teclado: A W S E D F T G Y H U J K (C3..C4)</div>
+  `;
+  document.body.appendChild(win);
+
+  // close
+  win.querySelector('.x').onclick = ()=> win.remove();
+
+  // drag
+  const header = win.querySelector('.inst-title');
+  let dragging=false, offX=0, offY=0;
+  header.addEventListener('mousedown', e=>{
+    dragging=true; offX=e.clientX - win.offsetLeft; offY=e.clientY - win.offsetTop;
+    document.body.style.userSelect='none';
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    let x = e.clientX - offX, y = e.clientY - offY;
+    x = Math.max(8, Math.min(x, window.innerWidth - win.offsetWidth - 8));
+    y = Math.max(8, Math.min(y, window.innerHeight - win.offsetHeight - 8));
+    win.style.left = x+'px'; win.style.top = y+'px';
+  });
+  document.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect='' });
+
+  // knobs
+  win.querySelectorAll('input[type="range"]').forEach(r=>{
+    r.addEventListener('input', e=>{
+      const k = e.target.dataset.k;
+      const v = parseFloat(e.target.value);
+      if (k === 'gain'){ inst.gain = v; audio.mixer[instId].gainNode.gain.value = v; }
+      else if (k === 'cutoff'){ inst.cutoff = v; }
+      else { inst.adsr[k] = v; }
+    });
+  });
+
+  // load buffer
+  audio.loadBuffer(instId).catch(err=> console.warn(err));
+}
+// Left buttons
+document.querySelectorAll('.inst-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> openInstrument(parseInt(btn.dataset.id,10)));
+});
+
+/* ======================= KEYBOARD PLAY (live) ======================= */
+// C3..C4 mapping
+const keyToSemitone = { a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,h:9,u:10,j:11,k:12 };
+const liveActive = new Map(); // key -> handle
+document.addEventListener('keydown', async (e)=>{
+  if (e.repeat) return;
+  if (!currentInstrumentId) return;
+  const k = e.key.toLowerCase();
+  if (!(k in keyToSemitone)) return;
+  if (audio.ctx.state==='suspended') await audio.ctx.resume();
+  await audio.loadBuffer(currentInstrumentId).catch(()=>{});
+  const handle = audio.noteOn({instId: currentInstrumentId, semitoneFromC3:keyToSemitone[k]});
+  liveActive.set(k, handle);
+});
+document.addEventListener('keyup', (e)=>{
+  const k = e.key.toLowerCase();
+  const h = liveActive.get(k);
+  if (h){ audio.noteOff(h); liveActive.delete(k); }
+});
+
+/* ======================= PIANO ROLL ======================= */
+const rollCanvas = document.getElementById('rollCanvas');
+const rctx = rollCanvas.getContext('2d');
+const roll = {
+  // time/grid
+  quant: 1/4, // default 1/4
+  bars: 4,
+  tempo: 120,
+  // graphics
+  pxPerBeat: 80, // horizontal scale
+  rowH: 20,
+  rows: 16, // 16 semitonos (C3..D#4)
+  // data
+  notes: [], // {x(startBeat), len(beats), row(0..rows-1), instId}
+  dragging: null, // {note, dx, dy, type:'move'|'resize'}
+  playheadX: 0,
+  playing: false,
+  startMs: 0
+};
+function quantizeBeat(b){ const q = roll.quant; return Math.round(b/q)*q; }
+function beatsToPx(b){ return b*roll.pxPerBeat; }
+function pxToBeats(px){ return px/roll.pxPerBeat; }
+
+// grid chips
+const grids = [1,1/2,1/4,1/8,1/16,1/32];
+const gridChips = document.getElementById('gridChips');
+grids.forEach(g=>{
+  const chip = document.createElement('div');
+  const label = (g===1)?'1/1':(g===0.5)?'1/2':`1/${1/g}`;
+  chip.className='chip'+(g===roll.quant?' active':'');
+  chip.textContent = label;
+  chip.onclick = ()=>{
+    roll.quant=g;
+    [...gridChips.children].forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    drawRoll();
+  };
+  gridChips.appendChild(chip);
+});
+
+// tempo & bars
+document.getElementById('tempo').addEventListener('input', e=>{ roll.tempo = Math.max(40, Math.min(220, +e.target.value||120)); });
+document.getElementById('bars').addEventListener('input', e=>{ roll.bars = Math.max(1, Math.min(64, +e.target.value||4)); drawRoll(); });
+
+// play/stop
+const playBtn = document.getElementById('playBtn');
+playBtn.onclick = ()=>{
+  if (roll.playing){ stopPlay(); }
+  else { startPlay(); }
+};
+
+function totalBeats(){ return roll.bars*4; }
+function songMs(){ const beats = totalBeats(); const spb=60/roll.tempo; return beats*spb*1000; }
+
+function drawRoll(){
+  const W = rollCanvas.width, H = rollCanvas.height;
+  rctx.clearRect(0,0,W,H);
+
+  // background rows
+  for (let r=0; r<roll.rows; r++){
+    rctx.fillStyle = (r%2===0)?'#0f141b':'#0d1117';
+    rctx.fillRect(0, r*roll.rowH, W, roll.rowH);
+  }
+  // vertical grid (beats & 16ths)
+  const beats = totalBeats();
+  for (let b=0; b<=beats; b+=roll.quant){
+    const x = Math.floor(beatsToPx(b)) + .5;
+    rctx.strokeStyle = (Math.abs(b - Math.round(b))<1e-6) ? '#2a3a4f' : '#1e2a3c';
+    rctx.lineWidth = (Math.abs(b - Math.round(b))<1e-6) ? 1.5 : 1;
+    rctx.beginPath(); rctx.moveTo(x,0); rctx.lineTo(x,H); rctx.stroke();
+  }
+  // notes
+  for (const n of roll.notes){
+    const x = Math.floor(beatsToPx(n.x)) + .5;
+    const w = Math.max(6, Math.floor(beatsToPx(n.len)));
+    const y = n.row*roll.rowH + 3;
+    const h = roll.rowH - 6;
+    // color by instrument
+    const hue = (n.instId*97)%360;
+    rctx.fillStyle = `hsl(${hue} 70% 55% / .85)`;
+    rctx.fillRect(x, y, w, h);
+    rctx.strokeStyle = `hsl(${hue} 80% 35%)`;
+    rctx.strokeRect(x, y, w, h);
+    // resize handle
+    rctx.fillStyle = '#ffffff';
+    rctx.fillRect(x+w-5, y, 5, h);
+  }
+  // playhead
+  if (roll.playing){
+    const t = (performance.now() - roll.startMs);
+    const x = 0.5 + (t/songMs()) * beatsToPx(totalBeats());
+    rctx.strokeStyle = '#ff4d4f';
+    rctx.lineWidth = 2;
+    rctx.beginPath(); rctx.moveTo(x,0); rctx.lineTo(x,H); rctx.stroke();
+    requestAnimationFrame(drawRoll);
+  }
+}
+drawRoll();
+
+// mouse interaction
+rollCanvas.addEventListener('mousedown', (e)=>{
+  const rect = rollCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const b = pxToBeats(mx);
+  const r = Math.floor(my/roll.rowH);
+
+  // check if clicked an existing note (resize or move)
+  for (let i=roll.notes.length-1; i>=0; i--){
+    const n = roll.notes[i];
+    const x = beatsToPx(n.x);
+    const w = beatsToPx(n.len);
+    const y = n.row*roll.rowH + 3;
+    const h = roll.rowH - 6;
+    if (mx>=x && mx<=x+w && my>=y && my<=y+h){
+      if (mx>=x+w-6){ // resize
+        roll.dragging = {note:n, dx:n.x - b, dy:n.row - r, type:'resize'};
+      }else{ // move
+        roll.dragging = {note:n, dx:n.x - b, dy:n.row - r, type:'move'};
+      }
+      return;
+    }
+  }
+  // create new note using current instrument
+  const instId = currentInstrumentId || 1;
+  const xBeat = quantizeBeat(pxToBeats(mx));
+  const newNote = {x:xBeat, len: Math.max(roll.quant, 1*roll.quant), row:r, instId};
+  roll.notes.push(newNote);
+  roll.dragging = {note:newNote, dx:0, dy:0, type:'resize'}; // estira al crear
+  drawRoll();
+});
+
+window.addEventListener('mousemove', (e)=>{
+  if (!roll.dragging) return;
+  const rect = rollCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const b = pxToBeats(mx);
+  const r = Math.floor(my/roll.rowH);
+  const n = roll.dragging.note;
+
+  if (roll.dragging.type==='move'){
+    n.x = Math.max(0, quantizeBeat(b + roll.dragging.dx));
+    n.row = Math.max(0, Math.min(roll.rows-1, r + roll.dragging.dy));
+  }else{
+    const newLen = Math.max(roll.quant, quantizeBeat(b - n.x));
+    n.len = newLen;
+  }
+  drawRoll();
+});
+window.addEventListener('mouseup', ()=> roll.dragging = null);
+
+// playback scheduler (simple)
+let scheduled = [];
+async function startPlay(){
+  if (audio.ctx.state==='suspended') await audio.ctx.resume();
+  // ensure buffers
+  for (const id of Object.keys(audio.instruments)) {
+    try { await audio.loadBuffer(+id); } catch(e){}
+  }
+  roll.playing = true; roll.startMs = performance.now();
+  playBtn.classList.add('playing'); playBtn.textContent='⏹ Stop';
+  scheduled = [];
+
+  const spb = 60/roll.tempo;
+  const beats = totalBeats();
+  // schedule all notes relative to now (no loop)
+  const t0 = audio.ctx.currentTime;
+  for (const n of roll.notes){
+    const whenBeat = n.x;
+    const whenSec = whenBeat*spb;
+    const handle = audio.noteOn({
+      instId:n.instId,
+      semitoneFromC3: n.row, // row 0 = C3
+      when: whenSec
+    });
+    // schedule off
+    const offSec = (n.x+n.len)*spb;
+    scheduled.push({handle, offAt: t0 + offSec});
+  }
+
+  // advance playhead with animation
+  const until = performance.now() + songMs();
+  function loop(){
+    if (!roll.playing) return;
+    // note offs
+    const now = audio.ctx.currentTime;
+    for (const s of scheduled){ if (!s.done && now>=s.offAt){ audio.noteOff(s.handle); s.done=true; } }
+    if (performance.now() < until){ requestAnimationFrame(drawRoll); }
+    else { stopPlay(); }
+  }
+  requestAnimationFrame(loop);
+}
+function stopPlay(){
+  roll.playing = false;
+  // stop all scheduled still on
+  for (const s of scheduled){ if (s.handle) audio.noteOff(s.handle); }
+  scheduled = [];
+  playBtn.classList.remove('playing'); playBtn.textContent='▶ Play';
+  drawRoll();
+}
+
+/* ======================= LIVE RECORDING (MediaRecorder .webm) ======================= */
+const recBtn = document.getElementById('recBtn');
+const stopRecBtn = document.getElementById('stopRecBtn');
+recBtn.onclick = async ()=>{
+  if (audio.ctx.state==='suspended') await audio.ctx.resume();
+  if (!audio.recorder){
+    const stream = audio.mediaDest.stream;
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+    audio.recorder = new MediaRecorder(stream, {mimeType:mime});
+    audio.recorder.ondataavailable = e=> audio.chunks.push(e.data);
+    audio.recorder.onstop = ()=>{
+      const blob = new Blob(audio.chunks, {type: audio.recorder.mimeType});
+      audio.chunks = [];
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'live_recording.webm';
+      a.click();
+      URL.revokeObjectURL(url);
+      audio.recorder = null;
+    };
+  }
+  audio.chunks = [];
+  audio.recorder.start();
+  recBtn.textContent='● Grabando...';
+  recBtn.style.color = '#ffb3b3';
+};
+stopRecBtn.onclick = ()=>{
+  if (audio.recorder && audio.recorder.state!=='inactive'){
+    audio.recorder.stop();
+    recBtn.textContent='● Grabar en vivo';
+    recBtn.style.color='';
+  }
+};
+
+/* ======================= EXPORT ARREGLO A MP3 (Offline render) ======================= */
+document.getElementById('exportMp3Btn').onclick = async ()=>{
+  // OfflineAudioContext render
+  const spb = 60/roll.tempo;
+  const lengthSec = totalBeats()*spb + 4; // cola
+  const sampleRate = 44100;
+  const offline = new OfflineAudioContext(2, Math.ceil(lengthSec*sampleRate), sampleRate);
+
+  // build mixer busses
+  const busses = {};
+  for (const id of Object.keys(audio.instruments)){
+    const g = offline.createGain(); g.gain.value = audio.instruments[id].gain;
+    const p = offline.createStereoPanner(); p.pan.value = audio.instruments[id].pan;
+    g.connect(p).connect(offline.destination);
+    busses[id] = {g,p};
+  }
+
+  // ensure we have decoded buffers in main ctx; clone into offline via AudioBuffer.copyToChannel
+  // fetch/decode if missing
+  for (const id of Object.keys(audio.instruments)){
+    if (!audio.buffers[id]){
+      try { await audio.loadBuffer(+id); } catch(e){}
+    }
+  }
+
+  // schedule notes
+  for (const n of roll.notes){
+    const src = offline.createBufferSource();
+    const mainBuf = audio.buffers[n.instId];
+    if (!mainBuf) continue;
+    // clone buffer for offline context
+    const clone = offline.createBuffer(mainBuf.numberOfChannels, mainBuf.length, mainBuf.sampleRate);
+    for (let ch=0; ch<mainBuf.numberOfChannels; ch++){
+      clone.copyToChannel(mainBuf.getChannelData(ch), ch);
+    }
+    src.buffer = clone;
+    src.playbackRate.value = Math.pow(2, n.row/12); // row = semitonos desde C3
+    // filter + adsr
+    const filt = offline.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value = audio.instruments[n.instId].cutoff;
+    const amp  = offline.createGain();
+    src.connect(filt).connect(amp).connect(busses[n.instId].g);
+
+    const A=audio.instruments[n.instId].adsr.attack;
+    const D=audio.instruments[n.instId].adsr.decay;
+    const S=audio.instruments[n.instId].adsr.sustain;
+    const R=audio.instruments[n.instId].adsr.release;
+    const t0 = n.x*spb;
+    amp.gain.setValueAtTime(0, t0);
+    amp.gain.linearRampToValueAtTime(1, t0+A);
+    amp.gain.linearRampToValueAtTime(S, t0+A+D);
+
+    src.start(t0);
+    amp.gain.setValueAtTime(amp.gain.value, (n.x+n.len)*spb);
+    amp.gain.linearRampToValueAtTime(0, (n.x+n.len)*spb + R);
+    try{ src.stop((n.x+n.len)*spb + R + .03);}catch(e){}
+  }
+
+  const rendered = await offline.startRendering();
+  // PCM -> MP3 (lamejs)
+  const mp3 = wavToMp3(rendered);
+  const url = URL.createObjectURL(new Blob([new Uint8Array(mp3)], {type:'audio/mpeg'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'arrangement.mp3'; a.click();
+  URL.revokeObjectURL(url);
+};
+
+// helper: AudioBuffer -> MP3 bytes (stereo 44.1k)
+function wavToMp3(abuf){
+  const numCh = 2;
+  const sr = abuf.sampleRate;
+  const ch0 = abuf.getChannelData(0);
+  const ch1 = (abuf.numberOfChannels>1)?abuf.getChannelData(1):ch0;
+  const mp3encoder = new lamejs.Mp3Encoder(numCh, sr, 128);
+  const blockSize = 1152;
+  let mp3Data = [];
+
+  let left = new Int16Array(blockSize);
+  let right= new Int16Array(blockSize);
+
+  function floatTo16BitPCM(out, offset, input){
+    for (let i = 0; i < input.length; i++, offset++){
+      let s = Math.max(-1, Math.min(1, input[i]));
+      out[offset] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+  }
+  for (let i=0; i<ch0.length; i+=blockSize){
+    const l = ch0.subarray(i, i+blockSize);
+    const r = ch1.subarray(i, i+blockSize);
+    left = new Int16Array(l.length);
+    right= new Int16Array(r.length);
+    floatTo16BitPCM(left, 0, l);
+    floatTo16BitPCM(right,0, r);
+    const enc = mp3encoder.encodeBuffer(left, right);
+    if (enc.length>0) mp3Data.push(enc);
+  }
+  const enc = mp3encoder.flush();
+  if (enc.length>0) mp3Data.push(enc);
+  return mp3Data.reduce((acc, chunk)=> new Uint8Array([...acc, ...chunk]), new Uint8Array());
+}
+
+
+</script>
+</body>
+</html>
