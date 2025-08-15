@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Caja de Ritmos - Mini DAW (Todo en 1)</title>
+<title>Mini DAW Unificado: Melódicos en vivo + Caja de Ritmos + Mixer + Grabación</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 :root{
@@ -15,13 +15,14 @@ header{display:flex;align-items:center;padding:10px 14px;gap:8px;background:rgba
 .brand{font-weight:700}
 .buttons{margin-left:auto;display:flex;gap:8px}
 .btn{padding:8px 12px;border-radius:10px;background:#0c1620;border:1px solid #18324a;color:var(--text);cursor:pointer}
-.main{flex:1;display:grid;grid-template-columns:240px 1fr;gap:12px;padding:12px;align-items:stretch}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.main{flex:1;display:grid;grid-template-columns:280px 1fr;gap:12px;padding:12px;align-items:stretch}
 .left{background:var(--panel);padding:12px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.03);overflow:auto}
 .left h3{margin:0 0 8px 0;color:var(--muted);font-size:13px}
 .row-btn{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;background:#08121a;border:1px dashed rgba(255,255,255,0.02);margin-bottom:8px;cursor:pointer}
 .row-btn:hover{border-style:solid;border-color:#234a76}
 .center{display:flex;flex-direction:column;gap:10px}
-.controls{display:flex;gap:8px;align-items:center}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .chips{display:flex;gap:6px}
 .chip{padding:6px 10px;border-radius:10px;background:#0d1620;border:1px solid #213b53;cursor:pointer;color:var(--muted)}
 .chip.active{background:rgba(107,156,255,0.12);border-color:var(--accent);color:#dfeeff}
@@ -34,36 +35,50 @@ canvas{display:block}
 .notesCanvas{position:absolute;left:0;top:0;z-index:20}
 .hint{font-size:12px;color:var(--muted)}
 .mixer{background:var(--panel);padding:10px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.03);display:flex;gap:10px;overflow:auto}
-.strip{min-width:160px;background:#0b1419;padding:10px;border-radius:10px;border:1px solid #183248;display:flex;flex-direction:column;gap:8px}
+.strip{min-width:180px;background:#0b1419;padding:10px;border-radius:10px;border:1px solid #183248;display:flex;flex-direction:column;gap:8px}
 .small{font-size:12px;color:var(--muted)}
-.inst-win{position:fixed;width:420px;border-radius:12px;overflow:hidden;background:#071219;border:1px solid #1f3245;box-shadow:0 20px 60px rgba(0,0,0,0.6);z-index:60}
+.inst-win{position:fixed;width:460px;border-radius:12px;overflow:hidden;background:#071219;border:1px solid #1f3245;box-shadow:0 20px 60px rgba(0,0,0,0.6);z-index:60}
 .inst-title{display:flex;align-items:center;justify-content:space-between;padding:10px;background:rgba(255,255,255,0.02);cursor:move}
-.inst-bg{height:180px;background:#0b1115;background-size:cover;background-position:center}
-.inst-ctrls{display:flex;gap:8px;padding:10px;flex-wrap:wrap}
-.knob{flex:1 1 120px;background:#0c1620;padding:8px;border-radius:8px;border:1px solid #162b3f}
+.inst-bg{height:160px;background:#0b1115;background-size:cover;background-position:center}
+.inst-ctrls{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:8px;padding:10px}
+.knob{background:#0c1620;padding:8px;border-radius:8px;border:1px solid #162b3f}
 .knob label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 .kbdhint{padding:8px;font-size:12px;color:var(--muted)}
+.piano{display:flex;gap:2px;padding:8px;flex-wrap:wrap}
+.key{width:30px;height:100px;background:#dfe6ee;border-radius:6px;border:1px solid #9eb3c8;position:relative;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;font-size:10px;color:#345}
+.key.black{width:22px;height:70px;background:#0e1520;color:#cbd6e2;border-color:#2b475f;position:absolute;margin-left:18px;z-index:2;border-radius:4px}
+.key.on{outline:2px solid var(--accent)}
+.meter{height:8px;background:#0b1115;border:1px solid #1c3346;border-radius:6px;overflow:hidden}
+.meter>div{height:100%;background:linear-gradient(90deg,#2ecc71,#f6c850,#ff5a5f);width:0%}
 .right-actions{display:flex;gap:8px;align-items:center}
+.badge{font-size:11px;padding:2px 6px;border:1px solid #1e3b55;border-radius:999px;background:#0b1419;color:#9fb4c8}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand">CAJA DE RITMOS - MINI DAW</div>
+  <div class="brand">MINI DAW UNIFICADO</div>
+  <div class="right-actions">
+    <span class="badge">Melódicos en vivo + Caja de Ritmos</span>
+  </div>
   <div class="buttons">
-    <button id="playBtn" class="btn playbtn">▶ Play</button>
-    <button id="loopBtn" class="btn">Loop: OFF</button>
-    <button id="clearBtn" class="btn">Limpiar</button>
+    <button id="playBtn" class="btn playbtn">▶ Play (Loop)</button>
+    <button id="loopBtn" class="btn">Loop: ON</button>
+    <button id="clearBtn" class="btn">Limpiar percusión</button>
+    <button id="recMasterBtn" class="btn">● Grabar Master (WAV)</button>
   </div>
 </header>
 
 <div class="main">
-  <!-- LEFT: rows (cada fila = sample) -->
+  <!-- LEFT: instrumentos melódicos en vivo -->
   <aside class="left" id="left">
-    <h3>Instrumentos (cada fila es un sample)</h3>
-    <!-- botones dinámicos generados por JS -->
-    <div id="rowsList"></div>
-    <div style="margin-top:10px" class="small">Haz click en una fila para abrir su ventana y luego crea su canal en el mixer.</div>
+    <h3>Instrumentos melódicos (en vivo)</h3>
+    <div id="melodicList"></div>
+    <div style="margin-top:10px" class="small">Haz clic en un instrumento para abrir su ventana. Dentro podrás <b>Crear Canal</b> (Mixer) y tocar con el teclado del PC (filas ZSXDCV y Q2W3ER, etc.).</div>
+    <hr style="opacity:.08;margin:12px 0">
+    <h3>Percusión (para la caja de ritmos)</h3>
+    <div id="drumList"></div>
+    <div style="margin-top:10px" class="small">Estos sonidos solo se secuencian a la derecha. Cada fila del piano‑roll es un WAV.</div>
   </aside>
 
   <!-- CENTER: roll + mixer -->
@@ -71,7 +86,7 @@ canvas{display:block}
     <div class="controls">
       <div class="chips" id="gridChips"></div>
       <div class="small" style="margin-left:12px">Tempo <input id="tempo" type="number" value="100" min="40" max="220" style="width:80px;margin-left:6px"></div>
-      <div class="small" style="margin-left:12px">Compases <input id="bars" type="number" value="4" min="1" max="64" style="width:60px;margin-left:6px"></div>
+      <div class="small" style="margin-left:12px">Compases <input id="bars" type="number" value="4" min="1" max="16" style="width:60px;margin-left:6px"></div>
       <div class="small" style="margin-left:12px">Zoom <input id="zoom" type="range" min="40" max="180" value="80"></div>
       <div style="margin-left:auto" class="small">Click: crear · Arrastrar: mover/estirar · Click derecho: borrar</div>
     </div>
@@ -81,426 +96,244 @@ canvas{display:block}
         <canvas id="keysCanvas" class="keysCanvas"></canvas>
         <canvas id="notesCanvas" class="notesCanvas"></canvas>
       </div>
-      <div class="hint">Cada fila es un sample/percussion. Abre la ventana de fila para crear canal y grabar su salida.</div>
+      <div class="hint">Caja de ritmos: hasta 4 compases en loop. Sonidos <b>solo de percusión</b>. Mientras suena el loop, toca los melódicos en vivo.</div>
     </div>
 
     <div class="mixer" id="mixer"></div>
   </section>
 </div>
 
-<!-- single floating instrument window created by JS -->
+<!-- ========================= DATA: instrumentos melódicos y percusión ========================= -->
 <script>
-/* ========================= CONFIG y SAMPLES FICTICIOS ========================= */
-const sampleRows = [
-  {id:1, name:'Conga', wav:'samples/conga.wav', img:'imgs/conga.png'},
-  {id:2, name:'Guiro', wav:'samples/guiro.wav', img:'imgs/guiro.png'},
-  {id:3, name:'Timbal', wav:'samples/timbal.wav', img:'imgs/timbal.png'},
-  {id:4, name:'Kick', wav:'samples/kick.wav', img:'imgs/kick.png'},
-  {id:5, name:'Snare', wav:'samples/snare.wav', img:'imgs/snare.png'},
-  {id:6, name:'HiHat', wav:'samples/hihat.wav', img:'imgs/hihat.png'},
-  {id:7, name:'Clap', wav:'samples/clap.wav', img:'imgs/clap.png'},
-  {id:8, name:'Cowbell', wav:'samples/cowbell.wav', img:'imgs/cowbell.png'},
-  {id:9, name:'Shaker', wav:'samples/shaker.wav', img:'imgs/shaker.png'},
-  {id:10, name:'Tom', wav:'samples/tom.wav', img:'imgs/tom.png'}
+const melodicInstruments = [
+  { id:'synth1', name:'Lead Seno', type:'sine', img:'', color:'#64b5f6' },
+  { id:'synth2', name:'Pad Triangular', type:'triangle', img:'', color:'#81c784' },
+  { id:'synth3', name:'Bass Diente', type:'sawtooth', img:'', color:'#f06292' },
+  { id:'synth4', name:'Pluck Cuadrada', type:'square', img:'', color:'#ffd54f' },
 ];
-// Puedes ampliar sampleRows con más items; usa rutas que luego reemplazarás por tus WAVs/IMGs
 
-/* ========================= Audio core ========================= */
+const drumRows = [
+  {id:1, name:'Kick',   wav:'samples/kick.wav',   img:'imgs/kick.png'},
+  {id:2, name:'Snare',  wav:'samples/snare.wav',  img:'imgs/snare.png'},
+  {id:3, name:'HiHat',  wav:'samples/hihat.wav',  img:'imgs/hihat.png'},
+  {id:4, name:'Clap',   wav:'samples/clap.wav',   img:'imgs/clap.png'},
+  {id:5, name:'Conga',  wav:'samples/conga.wav',  img:'imgs/conga.png'},
+  {id:6, name:'Guiro',  wav:'samples/guiro.wav',  img:'imgs/guiro.png'},
+  {id:7, name:'Timbal', wav:'samples/timbal.wav', img:'imgs/timbal.png'},
+  {id:8, name:'Cowbell',wav:'samples/cowbell.wav',img:'imgs/cowbell.png'},
+  {id:9, name:'Shaker', wav:'samples/shaker.wav', img:'imgs/shaker.png'},
+  {id:10,name:'Tom',    wav:'samples/tom.wav',    img:'imgs/tom.png'},
+];
+</script>
+
+<!-- ========================= AUDIO CORE ========================= -->
+<script>
 const audio = {
   ctx: new (window.AudioContext || window.webkitAudioContext)(),
   master: null,
+  masterGain: null,
   mediaDest: null,
-  recorder: null,
-  chunks: [],
-  buffers: {},    // rowId -> AudioBuffer
-  mixer: {},      // rowId -> {gainNode, panNode, el, recorder, mediaDest}
+  buffers: {},            // rowId -> AudioBuffer (percusión)
+  mixer: {},              // key -> {gainNode, panNode, el, recorder}
   liveHandles: new Set(),
+  workletIn: null,        // entrada al grabador WAV del master
+  wavRecorder: null,      // nodo worklet
+  masterRecording: false,
   init(){
-    this.master = this.ctx.createGain(); this.master.gain.value = 1;
+    this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = 1;
     const pan = this.ctx.createStereoPanner();
-    this.master.connect(pan).connect(this.ctx.destination);
-    // for master recording if needed
+    this.masterGain.connect(pan).connect(this.ctx.destination);
+    // MediaStreamDestination para compatibilidad (no usado para master WAV, pero útil si quieres webm)
     this.mediaDest = this.ctx.createMediaStreamDestination();
-    this.master.connect(this.mediaDest);
+    this.masterGain.connect(this.mediaDest);
+  },
+  async ensureWorklet(){
+    if (this.wavRecorder) return;
+    const workletCode = `class WavWriter extends AudioWorkletProcessor{\n  constructor(){super();this._bufferL=[];this._bufferR=[];this._recording=false;this._sr=sampleRate;\n    this.port.onmessage=e=>{if(e.data==='start')this._recording=true; if(e.data==='stop'){this._recording=false; this._flush();}}}\n  _flush(){const l=this._merge(this._bufferL), r=this._merge(this._bufferR); this._bufferL=[]; this._bufferR=[]; const inter=this._interleave(l,r); const wav=this._encodeWAV(inter,this._sr); this.port.postMessage({wav});}\n  _merge(list){const len=list.reduce((a,b)=>a+b.length,0); const res=new Float32Array(len); let off=0; for(const b of list){res.set(b,off); off+=b.length;} return res;}\n  _interleave(l,r){const len=Math.min(l.length,r.length); const out=new Float32Array(len*2); for(let i=0,j=0;i<len;i++,j+=2){out[j]=l[i]; out[j+1]=r[i];} return out;}\n  _encodeWAV(samples,sr){const bytes=samples.length*2; const buf=new ArrayBuffer(44+bytes); const view=new DataView(buf); function wStr(o,s){for(let i=0;i<s.length;i++) view.setUint8(o+i,s.charCodeAt(i));}\n    wStr(0,'RIFF'); view.setUint32(4,36+bytes,true); wStr(8,'WAVE'); wStr(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,2,true); view.setUint32(24,sr,true); view.setUint32(28,sr*4,true); view.setUint16(32,4,true); view.setUint16(34,16,true); wStr(36,'data'); view.setUint32(40,bytes,true);\n    let idx=44; for(let i=0;i<samples.length;i++,idx+=2){let s=Math.max(-1,Math.min(1,samples[i])); view.setInt16(idx, s<0 ? s*0x8000 : s*0x7FFF, true);} return buf;}\n  process(inputs){const ch=inputs[0]; if(!ch||ch.length<2) return true; if(this._recording){this._bufferL.push(new Float32Array(ch[0])); this._bufferR.push(new Float32Array(ch[1]));} return true;}\n}\nregisterProcessor('wav-writer', WavWriter);`;
+    const blob = new Blob([workletCode],{type:'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    await this.ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    this.wavRecorder = new AudioWorkletNode(this.ctx,'wav-writer',{numberOfInputs:1, numberOfOutputs:0, channelCount:2});
+    // crear un splitter para garantizar 2 canales
+    const splitter = this.ctx.createChannelSplitter(2);
+    const merger = this.ctx.createChannelMerger(2);
+    this.masterGain.connect(splitter);
+    splitter.connect(merger,0,0); splitter.connect(merger,1,1);
+    merger.connect(this.wavRecorder);
+  },
+  async startMasterRec(){
+    await this.ensureWorklet();
+    if (this.masterRecording) return;
+    this.masterRecording = true;
+    this.wavRecorder.port.onmessage = (e)=>{
+      const ab = e.data.wav; const blob = new Blob([ab],{type:'audio/wav'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='master_mix.wav'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    };
+    this.wavRecorder.port.postMessage('start');
+  },
+  stopMasterRec(){
+    if (!this.masterRecording || !this.wavRecorder) return;
+    this.masterRecording = false;
+    this.wavRecorder.port.postMessage('stop');
   },
   async loadBuffer(rowId){
     if (this.buffers[rowId]) return;
-    const row = sampleRows.find(r=>r.id===rowId);
+    const row = drumRows.find(r=>r.id===rowId);
     if (!row) return;
-    try {
+    try{
       const res = await fetch(row.wav);
       if (!res.ok) throw new Error('HTTP '+res.status);
       const ab = await res.arrayBuffer();
       this.buffers[rowId] = await this.ctx.decodeAudioData(ab);
-      console.log('Loaded', row.wav);
-    } catch(err){
-      console.warn('No se pudo cargar', row.wav, err);
-    }
+    }catch(err){ console.warn('No se pudo cargar', row.wav, err); }
   },
-  noteOn({rowId, when=0}){
-    const buf = this.buffers[rowId];
-    if (!buf) return null;
-    const ctx = this.ctx;
+  noteOnSample({rowId, when=0}){
+    const buf = this.buffers[rowId]; if(!buf) return null; const ctx=this.ctx;
     const src = ctx.createBufferSource(); src.buffer = buf;
     const amp = ctx.createGain(); amp.gain.value = 1;
-    const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value = 12000;
-
-    // route to per-channel gain if exists otherwise to master
-    const dest = this.mixer[rowId]?.gainNode || this.master;
-    src.connect(filt).connect(amp).connect(dest);
-
-    // ensure it stops itself and clean references
-    src.onended = ()=> {
-      try{ src.disconnect(); } catch(_) {}
-      try{ filt.disconnect(); } catch(_) {}
-      try{ amp.disconnect(); } catch(_) {}
-      this.liveHandles.delete(handle);
-    };
-
-    const t0 = ctx.currentTime + when;
-    src.start(t0);
+    const dest = this.mixer['drum:'+rowId]?.gainNode || this.masterGain;
+    src.connect(amp).connect(dest);
+    const t0 = ctx.currentTime + when; src.start(t0);
     const handle = {source:src, amp, start:t0};
+    src.onended = ()=>{ try{src.disconnect();}catch{} try{amp.disconnect();}catch{} this.liveHandles.delete(handle); };
+    this.liveHandles.add(handle); return handle;
+  },
+  noteOnSynth({synthId, freq=440, gate=1, attack=0.01, release=0.2, cutoff=12000, wave='sine'}){
+    const ctx=this.ctx;
+    const osc = ctx.createOscillator(); osc.type=wave; osc.frequency.value=freq;
+    const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=cutoff;
+    const amp = ctx.createGain(); amp.gain.value = 0;
+    const dest = this.mixer['synth:'+synthId]?.gainNode || this.masterGain;
+    osc.connect(filt).connect(amp).connect(dest);
+    const now = ctx.currentTime; amp.gain.cancelScheduledValues(now);
+    amp.gain.linearRampToValueAtTime(0, now); amp.gain.linearRampToValueAtTime(gate, now + attack);
+    const handle = {osc, amp, filt};
+    osc.start();
     this.liveHandles.add(handle);
+    handle.stop = ()=>{ const n=ctx.currentTime; amp.gain.cancelScheduledValues(n); amp.gain.linearRampToValueAtTime(amp.gain.value, n); amp.gain.linearRampToValueAtTime(0, n+release); setTimeout(()=>{try{osc.stop();}catch{}; try{osc.disconnect();filt.disconnect();amp.disconnect();}catch{}; this.liveHandles.delete(handle);}, (release+0.05)*1000); };
     return handle;
   },
-  noteOff(handle){
-    if (!handle) return;
-    try{
-      const now = this.ctx.currentTime;
-      handle.source.stop(now+0.02);
-      this.liveHandles.delete(handle);
-    }catch(e){}
-  },
-  panicAll(){
-    for (const h of Array.from(this.liveHandles)) try{ h.source.stop(); }catch(_){}
-    this.liveHandles.clear();
-  }
+  panicAll(){ for(const h of Array.from(this.liveHandles)){ try{ h.stop? h.stop(): h.source.stop(); }catch{} } this.liveHandles.clear(); }
 };
 audio.init();
+</script>
 
-/* ========================= UI: filas (left) ========================= */
-const rowsList = document.getElementById('rowsList');
-sampleRows.forEach(row=>{
+<!-- ========================= UI LISTAS IZQUIERDA ========================= -->
+<script>
+const melodicList = document.getElementById('melodicList');
+melodicInstruments.forEach(inst=>{
   const btn = document.createElement('div');
-  btn.className = 'row-btn';
-  btn.innerHTML = `<div>${row.name}</div><div class="small">ID ${row.id}</div>`;
-  btn.onclick = ()=> openRowWindow(row.id);
-  rowsList.appendChild(btn);
+  btn.className='row-btn';
+  btn.innerHTML = `<div>${inst.name}</div><div class="small">${inst.type}</div>`;
+  btn.onclick = ()=> openSynthWindow(inst);
+  melodicList.appendChild(btn);
 });
 
-/* ========================= Piano-roll grid + canvases ========================= */
-const notesCanvas = document.getElementById('notesCanvas');
-const keysCanvas  = document.getElementById('keysCanvas');
-const rollArea = document.getElementById('rollArea');
+const drumList = document.getElementById('drumList');
+drumRows.forEach(r=>{
+  const btn = document.createElement('div'); btn.className='row-btn';
+  btn.innerHTML = `<div>${r.name}</div><div class="small">WAV</div>`;
+  btn.onclick = ()=> openDrumChannel(r.id);
+  drumList.appendChild(btn);
+});
+</script>
 
-const roll = {
-  rows: sampleRows.length,
-  rowH: 34,
-  keyLaneW: 140,
-  bars: 4,
-  tempo: 100,
-  pxPerBeat: 80,
-  quant: 1/4,
-  notes: [], // {x(len in beats start), len, rowId}
-  dragging: null,
-  playing: false,
-  loop: false,
-  startMs: 0,
-  scheduledTimeout: null,
-  scheduledHandles: []
+<!-- ========================= SINTES MELÓDICOS (ventana) ========================= -->
+<script>
+let currentWin=null; let activeKeys=new Map();
+const KEYMAP = { // teclado PC -> semitonos relativos a C4
+  'z':0,'s':1,'x':2,'d':3,'c':4,'v':5,'g':6,'b':7,'h':8,'n':9,'j':10,'m':11,
+  ',':12,'q':12,'2':13,'w':14,'3':15,'e':16,'r':17,'5':18,'t':19,'6':20,'y':21,'7':22,'u':23,'i':24
 };
-
-function resizeCanvas(){
-  const beats = roll.bars*4;
-  const w = roll.keyLaneW + Math.max(600, Math.ceil(roll.pxPerBeat*beats));
-  const h = roll.rows * roll.rowH;
-  notesCanvas.width = w; notesCanvas.height = h;
-  keysCanvas.width = roll.keyLaneW; keysCanvas.height = h;
-  notesCanvas.style.left = '0px'; notesCanvas.style.top = '0px';
-  keysCanvas.style.left = '0px'; keysCanvas.style.top = '0px';
-  rollArea.scrollLeft = 0;
-  drawAll();
-}
-resizeCanvas();
-
-function beatsToPx(b){ return b * roll.pxPerBeat; }
-function pxToBeats(px){ return px / roll.pxPerBeat; }
-function quantize(b){ const q = roll.quant; return Math.round(b/q)*q; }
-
-function drawKeys(){
-  const kctx = keysCanvas.getContext('2d');
-  kctx.clearRect(0,0,keysCanvas.width,keysCanvas.height);
-  for (let i=0;i<roll.rows;i++){
-    const y = i*roll.rowH;
-    kctx.fillStyle = (i%2===0)?'#07121a':'#07151c';
-    kctx.fillRect(0,y,keysCanvas.width,roll.rowH);
-    kctx.strokeStyle='#0e2432';
-    kctx.beginPath(); kctx.moveTo(0,y+0.5); kctx.lineTo(keysCanvas.width,y+0.5); kctx.stroke();
-    const row = sampleRows[i];
-    kctx.fillStyle='#dfeeff';
-    kctx.font='13px sans-serif';
-    kctx.fillText(row.name, 10, y + 20);
-    kctx.fillStyle='#98b9d2';
-    kctx.font='11px sans-serif';
-    kctx.fillText('ID '+row.id, 10, y + 32);
-  }
-}
-
-function drawNotes(){
-  const ctx = notesCanvas.getContext('2d');
-  ctx.clearRect(0,0,notesCanvas.width,notesCanvas.height);
-
-  // vertical grid
-  const beats = roll.bars*4;
-  for (let b=0;b<=beats;b+=roll.quant){
-    const x = roll.keyLaneW + beatsToPx(b);
-    ctx.strokeStyle = (Math.abs(b-Math.round(b))<1e-6)?'#183044':'#0f2a3b';
-    ctx.lineWidth = (Math.abs(b-Math.round(b))<1e-6)?1.2:1;
-    ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,notesCanvas.height); ctx.stroke();
-  }
-
-  // notes
-  for (const n of roll.notes){
-    const rowIdx = sampleRows.findIndex(r=>r.id===n.rowId);
-    if (rowIdx < 0) continue;
-    const y = rowIdx * roll.rowH + 6;
-    const x = roll.keyLaneW + beatsToPx(n.x);
-    const w = Math.max(6, Math.floor(beatsToPx(n.len)));
-    const h = roll.rowH - 12;
-    const hue = (n.rowId * 78) % 360;
-    ctx.fillStyle = `hsl(${hue} 70% 55% / 0.95)`;
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = `hsl(${hue} 80% 35%)`;
-    ctx.strokeRect(x+0.5, y+0.5, w, h);
-    // resize handle
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + w - 6, y, 6, h);
-  }
-
-  // playhead
-  if (roll.playing){
-    const elapsed = (performance.now() - roll.startMs);
-    const playbeat = (elapsed / 1000) / (60/roll.tempo);
-    const x = roll.keyLaneW + beatsToPx(playbeat % (roll.bars*4));
-    ctx.strokeStyle = '#ff4d4f'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,notesCanvas.height); ctx.stroke();
-    requestAnimationFrame(drawNotes);
-  }
-}
-
-function drawAll(){ drawKeys(); drawNotes(); }
-drawAll();
-
-/* hit test */
-function hitNoteAt(mx,my){
-  for (let i=roll.notes.length-1;i>=0;i--){
-    const n = roll.notes[i];
-    const rowIdx = sampleRows.findIndex(r=>r.id===n.rowId);
-    if (rowIdx<0) continue;
-    const x = roll.keyLaneW + beatsToPx(n.x);
-    const w = beatsToPx(n.len);
-    const y = rowIdx * roll.rowH + 6;
-    const h = roll.rowH - 12;
-    if (mx>=x && mx<=x+w && my>=y && my<=y+h){
-      return {note:n, index:i, x,y,w,h};
-    }
-  }
-  return null;
-}
-
-/* mouse events */
-notesCanvas.addEventListener('mousedown', async (e)=>{
-  if (e.button===2) return; // handled separately
-  const rect = notesCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const b = pxToBeats(Math.max(0, mx - roll.keyLaneW));
-  const row = Math.floor(my / roll.rowH);
-  const hit = hitNoteAt(mx,my);
-  if (hit){
-    // move or resize
-    const nearRight = (mx >= hit.x + hit.w - 6);
-    if (nearRight){
-      roll.dragging = {type:'resize', note:hit.note, index:hit.index};
-    } else {
-      roll.dragging = {type:'move', note:hit.note, index:hit.index, offBeat: b - hit.note.x, offRow: row - sampleRows.findIndex(r=>r.id===hit.note.rowId)};
-    }
-    return;
-  }
-  // create new note on that row
-  const rowId = sampleRows[row].id;
-  const xBeat = quantize(b);
-  const newNote = {x:xBeat, len: roll.quant, rowId};
-  roll.notes.push(newNote);
-  roll.dragging = {type:'resize', note:newNote, index: roll.notes.length-1};
-  await audio.loadBuffer(rowId); // pre-load
-  // create mixer channel automatically? no — user must create channel in window; we only ensure buffer
-  drawAll();
-});
-
-notesCanvas.addEventListener('contextmenu', (e)=>{
-  e.preventDefault();
-  const rect = notesCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
-  const hit = hitNoteAt(mx,my);
-  if (hit) {
-    roll.notes.splice(hit.index,1);
-    drawAll();
-    // maybe remove mixer if now unused
-    maybeRemoveMixer(hit.note.rowId);
-  }
-});
-
-window.addEventListener('mousemove', (e)=>{
-  if (!roll.dragging) return;
-  const rect = notesCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const b = pxToBeats(Math.max(0, mx - roll.keyLaneW));
-  const rowIdx = Math.floor(my/roll.rowH);
-  const r = Math.max(0, Math.min(roll.rows-1, rowIdx));
-  const n = roll.dragging.note;
-  if (roll.dragging.type === 'move'){
-    n.x = Math.max(0, quantize(b - roll.dragging.offBeat));
-    n.rowId = sampleRows[Math.max(0,Math.min(roll.rows-1, r - roll.dragging.offRow))].id;
-  } else {
-    n.len = Math.max(roll.quant, quantize(b - n.x));
-  }
-  drawAll();
-});
-
-window.addEventListener('mouseup', ()=>{
-  roll.dragging = null;
-});
-
-/* grid chips */
-const gridList = [1,0.5,0.25,0.125,0.0625,0.03125];
-const gridChips = document.getElementById('gridChips');
-gridList.forEach(g=>{
-  const el = document.createElement('div'); el.className='chip' + (g===roll.quant?' active':'');
-  el.textContent = (g===1)?'1/1':(g===0.5)?'1/2':'1/'+(1/g);
-  el.onclick = ()=> { roll.quant=g; [...gridChips.children].forEach(c=>c.classList.remove('active')); el.classList.add('active'); drawAll(); };
-  gridChips.appendChild(el);
-});
-
-/* tempo / bars / zoom */
-document.getElementById('tempo').addEventListener('input', (e)=> roll.tempo = Math.max(40, Math.min(220, +e.target.value||100)));
-document.getElementById('bars').addEventListener('input', (e)=> { roll.bars = Math.max(1, Math.min(64, +e.target.value||4)); resizeCanvas(); });
-document.getElementById('zoom').addEventListener('input', (e)=> { roll.pxPerBeat = +e.target.value; resizeCanvas(); });
-
-/* ========================= Playback scheduling with loop ========================= */
-let scheduleTimer = null;
-function scheduleLoop(startTime){
-  // schedule all notes for one loop iteration starting at startTime (AudioContext time)
-  const spb = 60/roll.tempo;
-  const loopLenBeats = roll.bars * 4;
-  const loopLenSec = loopLenBeats * spb;
-  const now = audio.ctx.currentTime;
-  // schedule notes
-  for (const n of roll.notes){
-    const when = startTime + (n.x * spb); // seconds absolute
-    // create a source at that time
-    const handle = audio.noteOn({rowId:n.rowId, when: (when - now)});
-    if (handle) {
-      // schedule stop automatically by buffer length or leave it (buffer ends)
-      // keep handle to stop later if needed
-      audio.scheduledHandles = audio.scheduledHandles || [];
-      audio.scheduledHandles.push(handle);
-    }
-  }
-  // schedule next iteration if loop is enabled
-  if (roll.loop){
-    const msUntilNext = Math.max(0, (startTime + loopLenSec - audio.ctx.currentTime) * 1000 - 60);
-    roll.scheduledTimeout = setTimeout(()=>{
-      scheduleLoop(startTime + loopLenSec);
-    }, msUntilNext);
-  } else {
-    // not loop: set a timeout to stop playing after loopLenSec
-    roll.scheduledTimeout = setTimeout(()=> stopPlay(), (loopLenSec*1000)+200);
-  }
-}
-
-function startPlay(){
-  if (audio.ctx.state==='suspended') audio.ctx.resume();
-  // preload buffers for used rows
-  const usedRows = [...new Set(roll.notes.map(n=>n.rowId))];
-  Promise.all(usedRows.map(id=>audio.loadBuffer(id))).then(()=>{
-    roll.playing = true; roll.startMs = performance.now();
-    document.getElementById('playBtn').classList.add('playing'); document.getElementById('playBtn').textContent='⏹ Stop';
-    // schedule starting immediately
-    scheduleLoop(audio.ctx.currentTime + 0.02);
-  });
-}
-
-function stopPlay(){
-  roll.playing = false;
-  // cancel scheduled timeouts and stop scheduled handles
-  if (roll.scheduledTimeout) { clearTimeout(roll.scheduledTimeout); roll.scheduledTimeout = null; }
-  if (audio.scheduledHandles){
-    for (const h of audio.scheduledHandles){ try{ audio.noteOff(h); }catch(_){} }
-    audio.scheduledHandles = [];
-  }
-  audio.panicAll();
-  document.getElementById('playBtn').classList.remove('playing'); document.getElementById('playBtn').textContent='▶ Play';
-  drawAll();
-}
-
-/* play button / loop toggle / clear */
-document.getElementById('playBtn').onclick = ()=>{ if (roll.playing) stopPlay(); else startPlay(); };
-document.getElementById('loopBtn').onclick = (e)=>{ roll.loop = !roll.loop; e.target.textContent = 'Loop: ' + (roll.loop? 'ON':'OFF'); };
-document.getElementById('clearBtn').onclick = ()=>{ roll.notes=[]; drawAll(); /* maybe remove all unused mixers */ for (const r of sampleRows) maybeRemoveMixer(r.id); };
-
-/* ========================= Instrument window (single) and Create Channel ========================= */
-let currentWin = null;
-function openRowWindow(rowId){
-  const row = sampleRows.find(r=>r.id===rowId); if(!row) return;
-  // ensure single window
+function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
+function openSynthWindow(inst){
   if (currentWin) currentWin.remove();
   const win = document.createElement('div'); win.className='inst-win'; win.style.left='100px'; win.style.top='80px';
   win.innerHTML = `
-    <div class="inst-title"><div style="font-weight:700">${row.name}</div><div style="display:flex;gap:8px">
+    <div class="inst-title"><div style="font-weight:700">${inst.name}</div><div style="display:flex;gap:8px">
       <button class="btn" id="createChannel">Crear Canal</button>
       <div class="btn" id="closeWin">✕</div>
     </div></div>
-    <div class="inst-bg" style="background-image:url('${row.img || ''}');"></div>
+    <div class="inst-bg" style="background:${inst.color}22"></div>
     <div class="inst-ctrls">
-      <div class="knob"><label>Gain</label><input type="range" min="0" max="2" step="0.01" value="1" data-k="gain"></div>
-      <div class="knob"><label>Cutoff</label><input type="range" min="100" max="12000" step="1" value="12000" data-k="cutoff"></div>
-      <div class="knob"><label>Attack (ms)</label><input type="range" min="0" max="500" step="1" value="10" data-k="attack"></div>
-      <div class="knob"><label>Release (ms)</label><input type="range" min="0" max="2000" step="1" value="100" data-k="release"></div>
+      <div class="knob"><label>Wave</label>
+        <select id="waveSel"><option>sine</option><option>triangle</option><option>square</option><option>sawtooth</option></select>
+      </div>
+      <div class="knob"><label>Cutoff</label><input id="cutoff" type="range" min="200" max="12000" value="12000"></div>
+      <div class="knob"><label>Attack (s)</label><input id="attack" type="range" min="0" max="1" step="0.01" value="0.02"></div>
+      <div class="knob"><label>Release (s)</label><input id="release" type="range" min="0" max="2" step="0.01" value="0.2"></div>
     </div>
-    <div class="kbdhint">Ventana del sample: Crear Canal para añadir strip en Mixer. Puedes moverla arrastrando la barra.</div>
+    <div class="kbdhint">Teclado PC: Z X C V B N M ,  y Q W E R T Y U I (con 2 3 5 6 7 para sostenidos). Mantén y suelta para nota.</div>
+    <div class="piano" id="piano"></div>
   `;
-  document.body.appendChild(win);
-  currentWin = win;
+  document.body.appendChild(win); currentWin=win;
 
   // drag
-  const header = win.querySelector('.inst-title');
-  let dragging=false, ox=0, oy=0;
+  const header = win.querySelector('.inst-title'); let dragging=false, ox=0, oy=0;
   header.addEventListener('mousedown', (e)=>{ dragging=true; ox=e.clientX-win.offsetLeft; oy=e.clientY-win.offsetTop; document.body.style.userSelect='none'; });
-  document.addEventListener('mousemove', (e)=>{ if(!dragging) return; win.style.left = (e.clientX-ox)+'px'; win.style.top = (e.clientY-oy)+'px'; });
+  document.addEventListener('mousemove', (e)=>{ if(!dragging) return; win.style.left=(e.clientX-ox)+'px'; win.style.top=(e.clientY-oy)+'px'; });
   document.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect=''; });
-
   win.querySelector('#closeWin').onclick = ()=>{ win.remove(); currentWin=null; };
 
-  // Create Channel button
-  win.querySelector('#createChannel').onclick = async ()=>{
-    // create mixer strip for rowId if not exists
-    if (audio.mixer[rowId]) return alert('Canal ya creado para este sample');
-    await audio.loadBuffer(rowId).catch(()=>{});
-    createMixerStripForRow(rowId);
+  // Crear canal para este synth
+  win.querySelector('#createChannel').onclick = ()=>{ createMixerStrip('synth:'+inst.id, inst.name); };
+  // defaults
+  win.querySelector('#waveSel').value = inst.type;
+
+  // Piano UI (C4..C6)
+  const piano = win.querySelector('#piano');
+  const white = ['C','D','E','F','G','A','B'];
+  const keys = [];
+  let midi=60; // C4
+  for(let o=0;o<2;o++){
+    for(let i=0;i<white.length;i++){
+      const w=document.createElement('div'); w.className='key'; w.textContent=white[i]+(4+o); w.dataset.midi=midi; piano.appendChild(w); keys.push(w);
+      // black positions
+      if(!['E','B'].includes(white[i])){
+        const b=document.createElement('div'); b.className='key black'; b.textContent=''; b.dataset.midi=midi+1; w.appendChild(b); keys.push(b);
+      }
+      midi += (['E','B'].includes(white[i])?1:2);
+    }
+  }
+  function startNote(m){
+    const wave = win.querySelector('#waveSel').value; const cutoff = +win.querySelector('#cutoff').value; const attack=+win.querySelector('#attack').value; const release=+win.querySelector('#release').value;
+    const h = audio.noteOnSynth({synthId:inst.id, freq:midiToFreq(m), attack, release, cutoff, wave});
+    return h;
+  }
+  keys.forEach(k=>{
+    k.onmousedown = ()=>{ const m=+k.dataset.midi; const h=startNote(m); k.classList.add('on'); k.onmouseleave=()=>{ if(h&&h.stop) h.stop(); k.classList.remove('on'); }; k.onmouseup=()=>{ if(h&&h.stop) h.stop(); k.classList.remove('on'); } };
+  });
+
+  // teclado PC
+  const down=(e)=>{
+    if(e.repeat) return; const ch=e.key.toLowerCase(); if(!(ch in KEYMAP)) return;
+    const base=60; const m = base + KEYMAP[ch]; if(activeKeys.has(ch)) return; const h=startNote(m); activeKeys.set(ch,h);
   };
+  const up=(e)=>{
+    const ch=e.key.toLowerCase(); const h=activeKeys.get(ch); if(h){ h.stop&&h.stop(); activeKeys.delete(ch); }
+  };
+  window.addEventListener('keydown',down); window.addEventListener('keyup',up);
+  win.addEventListener('remove',()=>{ window.removeEventListener('keydown',down); window.removeEventListener('keyup',up); });
 }
 
-/* ========================= Mixer: crear strip por rowId + grabar canal ========================= */
+function openDrumChannel(rowId){
+  // Solo crea canal de mixer (para controlar/rec/mezclar); la secuencia se hace en el roll
+  createMixerStrip('drum:'+rowId, drumRows.find(r=>r.id===rowId)?.name || ('Drum '+rowId));
+  audio.loadBuffer(rowId);
+}
+</script>
+
+<!-- ========================= MIXER ========================= -->
+<script>
 const mixerEl = document.getElementById('mixer');
-function createMixerStripForRow(rowId){
-  const row = sampleRows.find(r=>r.id===rowId);
-  if (!row) return;
-  const inst = row;
+function createMixerStrip(key, label){
+  if (audio.mixer[key]) { alert('Canal ya existe: '+label); return; }
   const strip = document.createElement('div'); strip.className='strip';
   strip.innerHTML = `
-    <h4>${inst.name}</h4>
+    <h4 style="margin:0 0 4px 0">${label}</h4>
     <div class="small">Volumen</div>
     <input class="fader" type="range" min="0" max="2" step="0.01" value="1" data-vol>
     <div class="small">Pan</div>
@@ -510,95 +343,167 @@ function createMixerStripForRow(rowId){
       <button class="btn" data-del>Eliminar</button>
     </div>
     <div class="small">Nivel</div>
-    <div class="meter" id="meter-${rowId}"></div>
+    <div class="meter"><div></div></div>
   `;
   mixerEl.appendChild(strip);
 
-  // audio nodes
-  const gainNode = audio.ctx.createGain(); gainNode.gain.value = 1;
-  const panNode = audio.ctx.createStereoPanner(); panNode.pan.value = 0;
-  gainNode.connect(panNode).connect(audio.master);
+  // nodos
+  const gainNode = audio.ctx.createGain(); gainNode.gain.value=1;
+  const panNode = audio.ctx.createStereoPanner(); panNode.pan.value=0;
+  gainNode.connect(panNode).connect(audio.masterGain);
 
-  audio.mixer[rowId] = {gainNode, panNode, el:strip, recorder:null, mediaDest:null};
+  audio.mixer[key] = {gainNode, panNode, el:strip, recorder:null};
 
-  // controls
-  strip.querySelector('[data-vol]').addEventListener('input', (e)=>{ gainNode.gain.value = +e.target.value; });
-  strip.querySelector('[data-pan]').addEventListener('input', (e)=>{ panNode.pan.value = +e.target.value; });
+  // controles
+  const meterBar = strip.querySelector('.meter>div');
+  strip.querySelector('[data-vol]').addEventListener('input', e=> gainNode.gain.value=+e.target.value);
+  strip.querySelector('[data-pan]').addEventListener('input', e=> panNode.pan.value=+e.target.value);
 
-  // record button
-  const recBtn = strip.querySelector('[data-rec]');
-  let recInstance = null;
-  recBtn.onclick = async ()=>{
+  // medidor simple
+  const analyser = audio.ctx.createAnalyser(); analyser.fftSize = 1024; const data = new Uint8Array(analyser.frequencyBinCount);
+  gainNode.connect(analyser);
+  (function loop(){ analyser.getByteTimeDomainData(data); let peak=0; for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; peak=Math.max(peak,Math.abs(v)); } meterBar.style.width=(Math.min(1,peak*2)*100).toFixed(1)+'%'; requestAnimationFrame(loop); })();
+
+  // grabación del canal (MediaRecorder -> webm/ogg según navegador)
+  const recBtn = strip.querySelector('[data-rec]'); let recInstance=null;
+  recBtn.onclick = ()=>{
     if (!recInstance){
-      // start recording this channel by creating a MediaStreamDestination and MediaRecorder
-      const md = audio.ctx.createMediaStreamDestination();
-      // connect channel output to this md as well (duplicate connection)
-      audio.mixer[rowId].gainNode.connect(md);
-      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-      const recorder = new MediaRecorder(md.stream, {mimeType:mime});
-      const chunks = [];
-      recorder.ondataavailable = e=>chunks.push(e.data);
-      recorder.onstop = ()=> {
-        const blob = new Blob(chunks, {type: recorder.mimeType});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `${inst.name.replace(/\s+/g,'_')}_channel.webm`; a.click();
-        URL.revokeObjectURL(url);
-      };
-      recorder.start();
-      recBtn.textContent = '■ Grabando';
-      recBtn.style.background = 'linear-gradient(180deg,#330000,#661111)';
-      recInstance = {recorder, md};
-      audio.mixer[rowId].recorder = recInstance;
+      const md = audio.ctx.createMediaStreamDestination(); gainNode.connect(md);
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')? 'audio/ogg;codecs=opus' : 'audio/webm');
+      const recorder = new MediaRecorder(md.stream,{mimeType:mime}); const chunks=[];
+      recorder.ondataavailable = e=> chunks.push(e.data);
+      recorder.onstop = ()=>{ const blob=new Blob(chunks,{type:mime}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=(label.replace(/\s+/g,'_')+'_channel')+ (mime.includes('ogg')?'.ogg':'.webm'); a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000); };
+      recorder.start(); recBtn.textContent='■ Grabando'; recBtn.style.background='linear-gradient(180deg,#330000,#661111)'; recInstance={recorder,md};
     } else {
-      // stop
-      try{ recInstance.recorder.stop(); }catch(_){}
-      try{ recInstance.md.disconnect(); }catch(_){}
-      recInstance = null;
-      audio.mixer[rowId].recorder = null;
-      recBtn.textContent = 'Grabar';
-      recBtn.style.background = '';
+      try{recInstance.recorder.stop();}catch{}
+      try{recInstance.md.disconnect();}catch{}
+      recBtn.textContent='Grabar'; recBtn.style.background=''; recInstance=null;
     }
   };
 
-  // delete channel
+  // eliminar canal
   strip.querySelector('[data-del]').onclick = ()=>{
-    // stop recorder if active
-    const m = audio.mixer[rowId];
-    if (m && m.recorder){
-      try{ m.recorder.recorder.stop(); }catch(_){}
-      try{ m.recorder.md.disconnect(); }catch(_){}
-    }
-    // disconnect nodes
-    try{ gainNode.disconnect(); }catch(_){}
-    try{ panNode.disconnect(); }catch(_){}
-    strip.remove();
-    delete audio.mixer[rowId];
+    if (recInstance){ try{recInstance.recorder.stop();}catch{} try{recInstance.md.disconnect();}catch{} }
+    try{gainNode.disconnect();}catch{} try{panNode.disconnect();}catch{}
+    strip.remove(); delete audio.mixer[key];
   };
 }
+</script>
 
-/* remove mixer if unused */
-function maybeRemoveMixer(rowId){
-  const used = roll.notes.some(n=>n.rowId===rowId);
-  if (!used && audio.mixer[rowId]){
-    // remove strip similar to delete button
-    const m = audio.mixer[rowId];
-    try{ m.el.remove(); }catch(_){}
-    try{ m.gainNode.disconnect(); }catch(_){}
-    try{ m.panNode.disconnect(); }catch(_){}
-    if (m.recorder){ try{ m.recorder.recorder.stop(); }catch(_){ } }
-    delete audio.mixer[rowId];
+<!-- ========================= CAJA DE RITMOS (piano-roll de percusión) ========================= -->
+<script>
+const notesCanvas = document.getElementById('notesCanvas');
+const keysCanvas  = document.getElementById('keysCanvas');
+const rollArea = document.getElementById('rollArea');
+
+const roll = {
+  rows: drumRows.length,
+  rowH: 34,
+  keyLaneW: 160,
+  bars: 4,
+  tempo: 100,
+  pxPerBeat: 80,
+  quant: 0.25,
+  notes: [], // {x,len,rowId}
+  dragging:null,
+  playing:false,
+  loop:true,
+  startMs:0,
+  scheduledTimeout:null
+};
+
+function beatsToPx(b){ return b * roll.pxPerBeat; }
+function pxToBeats(px){ return px / roll.pxPerBeat; }
+function quantize(b){ const q=roll.quant; return Math.round(b/q)*q; }
+
+function resizeCanvas(){
+  const beats = roll.bars*4;
+  const w = roll.keyLaneW + Math.max(600, Math.ceil(roll.pxPerBeat*beats));
+  const h = roll.rows * roll.rowH;
+  notesCanvas.width=w; notesCanvas.height=h; keysCanvas.width=roll.keyLaneW; keysCanvas.height=h;
+  drawAll();
+}
+resizeCanvas();
+
+function drawKeys(){
+  const kctx=keysCanvas.getContext('2d');
+  kctx.clearRect(0,0,keysCanvas.width,keysCanvas.height);
+  for(let i=0;i<roll.rows;i++){
+    const y=i*roll.rowH; kctx.fillStyle=(i%2===0)?'#07121a':'#07151c'; kctx.fillRect(0,y,keysCanvas.width,roll.rowH);
+    kctx.strokeStyle='#0e2432'; kctx.beginPath(); kctx.moveTo(0,y+0.5); kctx.lineTo(keysCanvas.width,y+0.5); kctx.stroke();
+    const row=drumRows[i]; kctx.fillStyle='#dfeeff'; kctx.font='13px sans-serif'; kctx.fillText(row.name,10,y+20);
+    kctx.fillStyle='#98b9d2'; kctx.font='11px sans-serif'; kctx.fillText('WAV', 10, y+32);
   }
 }
 
-/* ========================= small helpers ========================= */
-// prevent text selection during drag on canvases
-['mousedown','mousemove','mouseup'].forEach(ev=>{
-  window.addEventListener(ev, (e)=>{ if (e.target===notesCanvas || e.target===keysCanvas) e.preventDefault(); }, {passive:false});
+function drawNotes(){
+  const ctx=notesCanvas.getContext('2d'); ctx.clearRect(0,0,notesCanvas.width,notesCanvas.height);
+  const beats=roll.bars*4;
+  for(let b=0;b<=beats;b+=roll.quant){ const x=roll.keyLaneW + beatsToPx(b); ctx.strokeStyle=(Math.abs(b-Math.round(b))<1e-6)?'#183044':'#0f2a3b'; ctx.lineWidth=(Math.abs(b-Math.round(b))<1e-6)?1.2:1; ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,notesCanvas.height); ctx.stroke(); }
+  for(const n of roll.notes){
+    const rowIdx = drumRows.findIndex(r=>r.id===n.rowId); if(rowIdx<0) continue;
+    const y = rowIdx*roll.rowH + 6; const x=roll.keyLaneW + beatsToPx(n.x); const w=Math.max(6, Math.floor(beatsToPx(n.len))); const h=roll.rowH-12;
+    const hue=(n.rowId*78)%360; ctx.fillStyle=`hsl(${hue} 70% 55% / 0.95)`; ctx.fillRect(x,y,w,h); ctx.strokeStyle=`hsl(${hue} 80% 35%)`; ctx.strokeRect(x+0.5,y+0.5,w,h); ctx.fillStyle='#fff'; ctx.fillRect(x+w-6,y,6,h);
+  }
+  if(roll.playing){ const elapsed=(performance.now()-roll.startMs); const playbeat=(elapsed/1000)/(60/roll.tempo); const x=roll.keyLaneW + beatsToPx(playbeat % (roll.bars*4)); ctx.strokeStyle='#ff4d4f'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,notesCanvas.height); ctx.stroke(); requestAnimationFrame(drawNotes); }
+}
+function drawAll(){ drawKeys(); drawNotes(); }
+
+function hitNoteAt(mx,my){
+  for(let i=roll.notes.length-1;i>=0;i--){ const n=roll.notes[i]; const rowIdx=drumRows.findIndex(r=>r.id===n.rowId); if(rowIdx<0) continue; const x=roll.keyLaneW+beatsToPx(n.x); const w=beatsToPx(n.len); const y=rowIdx*roll.rowH+6; const h=roll.rowH-12; if(mx>=x&&mx<=x+w&&my>=y&&my<=y+h){ return {note:n,index:i,x,y,w,h}; } }
+  return null;
+}
+
+notesCanvas.addEventListener('mousedown', async (e)=>{
+  if(e.button===2) return; const rect=notesCanvas.getBoundingClientRect(); const mx=e.clientX-rect.left; const my=e.clientY-rect.top; const b=pxToBeats(Math.max(0,mx-roll.keyLaneW)); const row=Math.floor(my/roll.rowH); const hit=hitNoteAt(mx,my);
+  if(hit){ const nearRight=(mx>=hit.x+hit.w-6); if(nearRight){ roll.dragging={type:'resize', note:hit.note, index:hit.index}; } else { roll.dragging={type:'move', note:hit.note, index:hit.index, offBeat: b-hit.note.x, offRow: row - drumRows.findIndex(r=>r.id===hit.note.rowId)}; } return; }
+  // crear nueva nota en fila de percusión
+  const rowId = drumRows[Math.max(0,Math.min(roll.rows-1,row))].id; const xBeat=quantize(b); const newNote={x:xBeat, len: roll.quant, rowId}; roll.notes.push(newNote); roll.dragging={type:'resize', note:newNote, index:roll.notes.length-1}; await audio.loadBuffer(rowId); drawAll();
 });
 
-// handle resize on window
-window.addEventListener('resize', ()=>{ resizeCanvas(); drawAll(); });
+notesCanvas.addEventListener('contextmenu',(e)=>{ e.preventDefault(); const rect=notesCanvas.getBoundingClientRect(); const mx=e.clientX-rect.left; const my=e.clientY-rect.top; const hit=hitNoteAt(mx,my); if(hit){ roll.notes.splice(hit.index,1); drawAll(); maybeRemoveDrumMixer(hit.note.rowId); }});
 
+window.addEventListener('mousemove',(e)=>{ if(!roll.dragging) return; const rect=notesCanvas.getBoundingClientRect(); const mx=e.clientX-rect.left; const my=e.clientY-rect.top; const b=pxToBeats(Math.max(0,mx-roll.keyLaneW)); const rowIdx=Math.floor(my/roll.rowH); const r=Math.max(0,Math.min(roll.rows-1,rowIdx)); const n=roll.dragging.note; if(roll.dragging.type==='move'){ n.x=Math.max(0, quantize(b - roll.dragging.offBeat)); n.rowId = drumRows[Math.max(0,Math.min(roll.rows-1, r - roll.dragging.offRow))].id; } else { n.len=Math.max(roll.quant, quantize(b - n.x)); } drawAll(); });
+window.addEventListener('mouseup',()=>{ roll.dragging=null; });
+
+const gridList=[1,0.5,0.25,0.125,0.0625,0.03125];
+const gridChips=document.getElementById('gridChips');
+gridList.forEach(g=>{ const el=document.createElement('div'); el.className='chip'+(g===roll.quant?' active':''); el.textContent=(g===1)?'1/1':(g===0.5)?'1/2':'1/'+(1/g); el.onclick=()=>{ roll.quant=g; [...gridChips.children].forEach(c=>c.classList.remove('active')); el.classList.add('active'); drawAll(); }; gridChips.appendChild(el); });
+
+document.getElementById('tempo').addEventListener('input',(e)=> roll.tempo=Math.max(40,Math.min(220,+e.target.value||100)) );
+document.getElementById('bars').addEventListener('input',(e)=>{ roll.bars=Math.max(1,Math.min(16,+e.target.value||4)); resizeCanvas(); });
+document.getElementById('zoom').addEventListener('input',(e)=>{ roll.pxPerBeat=+e.target.value; resizeCanvas(); });
+
+function scheduleLoop(startTime){
+  const spb=60/roll.tempo; const loopLenBeats=roll.bars*4; const loopLenSec=loopLenBeats*spb; const now=audio.ctx.currentTime;
+  for(const n of roll.notes){ const when=startTime + (n.x * spb); audio.noteOnSample({rowId:n.rowId, when:(when-now)}); }
+  if(roll.loop){ const msUntilNext=Math.max(0,(startTime+loopLenSec-audio.ctx.currentTime)*1000 - 60); roll.scheduledTimeout=setTimeout(()=>scheduleLoop(startTime+loopLenSec), msUntilNext); }
+  else { roll.scheduledTimeout=setTimeout(()=> stopPlay(), (loopLenSec*1000)+200); }
+}
+
+function startPlay(){ if(audio.ctx.state==='suspended') audio.ctx.resume(); const used=[...new Set(roll.notes.map(n=>n.rowId))]; Promise.all(used.map(id=>audio.loadBuffer(id))).then(()=>{ roll.playing=true; roll.startMs=performance.now(); document.getElementById('playBtn').classList.add('playing'); document.getElementById('playBtn').textContent='⏹ Stop'; scheduleLoop(audio.ctx.currentTime+0.02); drawNotes(); }); }
+function stopPlay(){ roll.playing=false; if(roll.scheduledTimeout){ clearTimeout(roll.scheduledTimeout); roll.scheduledTimeout=null; } audio.panicAll(); document.getElementById('playBtn').classList.remove('playing'); document.getElementById('playBtn').textContent='▶ Play (Loop)'; drawAll(); }
+
+document.getElementById('playBtn').onclick=()=>{ if(roll.playing) stopPlay(); else startPlay(); };
+document.getElementById('loopBtn').onclick=(e)=>{ roll.loop=!roll.loop; e.target.textContent='Loop: '+(roll.loop?'ON':'OFF'); };
+document.getElementById('clearBtn').onclick=()=>{ roll.notes=[]; drawAll(); for(const r of drumRows) maybeRemoveDrumMixer(r.id); };
+
+function maybeRemoveDrumMixer(rowId){ const used=roll.notes.some(n=>n.rowId===rowId); const key='drum:'+rowId; if(!used && audio.mixer[key]){ const m=audio.mixer[key]; try{m.el.remove();}catch{} try{m.gainNode.disconnect();}catch{} try{m.panNode.disconnect();}catch{} delete audio.mixer[key]; } }
+
+// prevenir selección al arrastrar
+['mousedown','mousemove','mouseup'].forEach(ev=>{ window.addEventListener(ev,(e)=>{ if(e.target===notesCanvas||e.target===keysCanvas) e.preventDefault(); },{passive:false}); });
+window.addEventListener('resize',()=>{ resizeCanvas(); drawAll(); });
 </script>
+
+<!-- ========================= MASTER GRABACIÓN (WAV) ========================= -->
+<script>
+const recMasterBtn = document.getElementById('recMasterBtn');
+let masterRecording=false;
+recMasterBtn.onclick = async ()=>{
+  if(!masterRecording){ await audio.startMasterRec(); masterRecording=true; recMasterBtn.textContent='■ Detener Master (WAV)'; recMasterBtn.style.background='linear-gradient(180deg,#330000,#661111)'; }
+  else { audio.stopMasterRec(); masterRecording=false; recMasterBtn.textContent='● Grabar Master (WAV)'; recMasterBtn.style.background=''; }
+};
+</script>
+
 </body>
 </html>
