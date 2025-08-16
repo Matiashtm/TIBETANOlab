@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<title>Mini-DAW: Sampler + Piano Roll + Mixer</title>
+<title>Mini-DAW: Mixer por instrumentos</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
 <style>
@@ -12,7 +12,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0; background:linear-gradient(180deg,#0b0f14 0%, #0e141b 100%); color:var(--text);
-       font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; height:100vh; display:flex; flex-direction:column;}
+       font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; min-height:100vh; display:flex; flex-direction:column;}
   header{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #0f2030;
          background:rgba(255,255,255,0.02); backdrop-filter: blur(8px);}
   header .brand{font-weight:700; letter-spacing:.5px}
@@ -27,734 +27,472 @@
             border-radius:12px; text-align:left; cursor:pointer; display:flex; align-items:center; justify-content:space-between;}
   .inst-btn:hover{border-style:solid; border-color:#335e98; background:#111b2a}
   .tag{font-size:11px; color:#a7bed3; padding:2px 6px; border:1px solid #2a3a4d; border-radius:999px}
-  /* Center */
-  #center{display:grid; grid-template-rows: auto 1fr auto; gap:12px; min-height:0}
-  #rollbar{background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:10px; display:flex; align-items:center; gap:10px;}
-  .seg{display:flex; gap:8px; align-items:center}
-  .seg label{font-size:12px; color:var(--muted)}
-  .chips{display:flex; gap:6px; flex-wrap:wrap}
-  .chip{padding:6px 10px; border:1px solid #244059; background:#0f1823; border-radius:10px; cursor:pointer; font-size:12px; color:#cfe0f3;}
-  .chip.active{border-color:var(--accent); background:rgba(107,156,255,.15)}
-  .playbtn{padding:10px 14px; border:1px solid #23425e; background:#122033; color:var(--text); border-radius:12px; cursor:pointer; font-weight:600;}
-  .playbtn.playing{border-color:var(--ok); color:#eafff1}
-  #rollwrap{background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:10px; position:relative; min-height:0; display:flex; flex-direction:column; gap:10px;}
-  #rollArea{position:relative; overflow:auto; border-radius:10px; border:1px solid #213044; background:#0f141b;}
-  /* Two layered canvases: keys + notes */
-  #keysCanvas{position:absolute; left:0; top:0;}
-  #rollCanvas{position:absolute; top:0; left:0;}
-  .hint{font-size:12px; color:#9fb4c8}
-  #mixer{background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:12px; display:flex; gap:12px; overflow:auto;}
-  .strip{min-width:160px; background:#0f1620; border:1px solid #203047; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;}
-  .strip h4{margin:0; font-size:13px}
+  /* Center: Mixer area */
+  #center{display:flex; flex-direction:column; gap:12px; min-height:0}
+  #controls{background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:10px; display:flex; gap:8px; align-items:center;}
+  #mixerWrap{background:var(--panel); border:1px solid #152231; border-radius:var(--radius); padding:12px; display:flex; gap:12px; overflow:auto; min-height:320px;}
+  .inst-mixer{min-width:260px; background:#0f1620; border:1px solid #203047; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;}
+  .inst-mixer h4{margin:0; font-size:13px}
+  .channel{background:#0c1419; border:1px solid #223247; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px;}
+  .ch-top{display:flex; gap:8px; align-items:center; justify-content:space-between}
   .fader{appearance:none; width:100%; height:6px; background:#1e2a3a; border-radius:999px; outline:none}
   .fader::-webkit-slider-thumb{appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); cursor:pointer}
-  .small{font-size:11px; color:#a9bfd3}
-  .meter{height:6px; background:linear-gradient(90deg,#2ecc71,#f1c40f,#ff5a5f); border-radius:999px; opacity:.6}
-  /* Instrument window */
-  .inst-win{position:fixed; top:120px; left:120px; width:420px; border-radius:16px; overflow:hidden; border:1px solid #264562;
-            background:#0d1218; box-shadow:0 20px 60px rgba(0,0,0,.5); z-index:50;}
-  .inst-title{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(0,0,0,.35); border-bottom:1px solid #1b2b3c; cursor:move; user-select:none;}
-  .inst-title .name{font-weight:700}
-  .inst-title .x{width:28px; height:28px; display:grid; place-items:center; border:1px solid #2b4157; border-radius:8px; cursor:pointer}
-  .inst-bg{height:200px; background:#111; background-size:cover; background-position:center;}
-  .inst-ctrls{display:flex; gap:10px; padding:10px; flex-wrap:wrap}
-  .knob{flex:1 1 100px; background:#0f1620; border:1px solid #223247; border-radius:12px; padding:8px}
-  .knob label{display:block; font-size:11px; color:#9ab0c6; margin-bottom:6px}
-  .knob input{width:100%}
-  .kbdhint{padding:8px 10px; color:#cfe0f3; font-size:12px}
+  .btn-small{padding:6px 8px; border-radius:8px; border:1px solid #223247; background:#0f1620; cursor:pointer}
+  .rec-on{background:linear-gradient(90deg,#ff6b6b,#ffb3b3); color:#210000}
+  .recordings{display:flex; flex-direction:column; gap:6px; max-height:160px; overflow:auto}
+  .rec-item{display:flex; gap:8px; align-items:center; background:#081018; padding:6px; border-radius:8px; border:1px solid #172634}
+  .small{font-size:12px; color:#a9bfd3}
+  .muted{color:var(--muted)}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">TIBETANO BEATS LABS</div>
+  <div class="brand">TIBETANO BEATS LABS — Mixer</div>
   <div class="sp"></div>
-  <button id="recBtn" class="btn">● Grabar en vivo</button>
-  <button id="stopRecBtn" class="btn">⏹ Detener & Descargar</button>
-  <button id="exportMp3Btn" class="btn">⬇ Exportar Arreglo a MP3</button>
+  <button id="playMixerBtn" class="btn">▶ Reproducir Mixer</button>
+  <button id="stopMixerBtn" class="btn">⏹ Detener Mixer</button>
+  <button id="exportMp3Btn" class="btn">⬇ Exportar Mezcla a MP3</button>
 </header>
 
 <main>
   <!-- LEFT: instrumentos -->
   <aside id="left">
     <h3>Instrumentos</h3>
+    <!-- listado reducido; puedes agregar más como en tu original -->
     <button class="inst-btn" data-id="1">ACORDEON KAWAI FS690 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="2">ACUSTIC BASSOON <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="3">ACUSTIC CLARINET <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="4">ACUSTIC MUSSETTE <span class="tag">WAV</span></button>
     <button class="inst-btn" data-id="5">ACUSTIC PIANO <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="6">BAGPIPE XP10 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="7">BANDONEON XP10 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="8">BIG MINI <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="9">BRASS <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="10">BUSY BOY <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="11">CAMPANAS <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="12">CANIAS <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="13">DISTGT XP10 <span class="tag">WAV</span></button>
     <button class="inst-btn" data-id="14">ELECTRIC PIANO <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="15">HAMMOND SYNTHE <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="16">HONKYTONK XP10 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="17">MONOLEAD N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="18">MUSSETE N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="19">NEW KAWAI <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="20">ORGANO LESLIE <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="21">ORGANO <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="22">OUTPUT C3 <span class="tag">WAV</span></button>
     <button class="inst-btn" data-id="23">P5POLY XP10 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="24">PAN FLAUTE N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="25">PIZZICATO <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="26">POLYSYNTH D-50 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="27">RODES1 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="28">SHAMISEN N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="29">SITAR XP10 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="30">SPLITSYNC N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="31">SQUARE WAVE N364 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="32">SUPER BX3 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="33">TB 03 <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="34">TB BANDONEON <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="35">TB KAWAI <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="36">TB MONOLEAD <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="37">TB MUSSETE <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="38">TENOR SAX <span class="tag">WAV</span></button>
-    <button class="inst-btn" data-id="39">X PIANO N364 <span class="tag">WAV</span></button>
     <div class="small" style="margin-top:8px">
-      Haz clic en un instrumento para abrir su ventana y tocar con el teclado.<br>
-      Las notas nuevas en el Piano Roll usarán el instrumento activo.
+      Haz clic en un instrumento para abrir su ventana y crear canales en el Mixer.<br>
+      Cada canal puede grabar lo que su instrumento reproduce.
     </div>
   </aside>
 
-  <!-- CENTER: piano roll + mixer -->
+  <!-- CENTER: mixer y controles -->
   <section id="center">
-    <div id="rollbar">
-      <button id="playBtn" class="playbtn">▶ Play</button>
-      <div class="seg"><label>Tempo</label>
-        <input id="tempo" type="number" min="40" max="220" value="120" class="btn" style="width:80px;text-align:center">
-      </div>
-      <div class="seg"><label>Grid</label>
-        <div id="gridChips" class="chips"></div>
-      </div>
-      <div class="seg"><label>Compases</label>
-        <input id="bars" type="number" min="1" max="64" value="4" class="btn" style="width:80px;text-align:center">
-      </div>
-      <div class="seg"><label>Zoom</label>
-        <input id="zoom" type="range" min="40" max="160" value="80" step="4">
-      </div>
-      <div class="sp"></div>
-      <div class="seg small">Click: crear · Arrastrar: mover/estirar · Click derecho: borrar</div>
+    <div id="controls">
+      <div class="small muted">Controles globales:</div>
+      <div style="width:8px"></div>
+      <div class="small">Master Volume</div>
+      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="1" style="width:160px">
+      <div style="flex:1"></div>
+      <div class="small muted">Click instrumento → Abrir ventana → Crear canal</div>
     </div>
 
-    <div id="rollwrap">
-      <div id="rollArea" style="height:330px;">
-        <canvas id="keysCanvas" width="80" height="320"></canvas>
-        <canvas id="rollCanvas" width="1200" height="320"></canvas>
-      </div>
-      <div class="hint">Teclado: A W S E D F T G Y H U J K → C3..C4</div>
-    </div>
-
-    <div id="mixer"><!-- strips dinámicos --></div>
+    <div id="mixerWrap"><!-- mixers por instrumento se agregan aquí --></div>
   </section>
 </main>
 
 <script>
-/* ======================= AUDIO CORE ======================= */
+/* ================= AUDIO CORE ================= */
 const audio = {
   ctx: new (window.AudioContext || window.webkitAudioContext)(),
-  master: null, mediaDest: null, recorder: null, chunks: [],
-  buffers: {}, // instrumentId -> AudioBuffer
+  masterGain: null, mediaDestAll: null,
+  buffers: {},
   instruments: {
-    1:{name:"ACORDEON KAWAI FS690", wav:"wavs/ACORDEON KAWAI FS690.wav", bg:"imgs/ACORDEON KAWAI FS690.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    2:{name:"ACUSTIC BASSOON", wav:"wavs/ACUSTIC BASSOON.wav", bg:"imgs/ACUSTIC BASSOON.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    3:{name:"ACUSTIC CLARINET", wav:"wavs/ACUSTIC CLARINET.wav", bg:"imgs/ACUSTIC CLARINET.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    4:{name:"ACUSTIC MUSSETTE", wav:"wavs/ACUSTIC MUSSETTE.wav", bg:"imgs/ACUSTIC MUSSETTE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    5:{name:"ACUSTIC PIANO", wav:"wavs/ACUSTIC PIANO.wav", bg:"imgs/ACUSTIC PIANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    6:{name:"BAGPIPE XP10", wav:"wavs/BAGPIPE XP10.wav", bg:"imgs/BAGPIPE XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    7:{name:"BANDONEON XP10", wav:"wavs/BANDONEON XP10.wav", bg:"imgs/BANDONEON XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    8:{name:"BIG MINI", wav:"wavs/BIG MINI.wav", bg:"imgs/BIG MINI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    9:{name:"BRASS", wav:"wavs/BRASS.wav", bg:"imgs/BRASS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    10:{name:"BUSY BOY", wav:"wavs/BUSY BOY.wav", bg:"imgs/BUSY BOY.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    11:{name:"CAMPANAS", wav:"wavs/CAMPANAS.wav", bg:"imgs/CAMPANAS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    12:{name:"CANIAS", wav:"wavs/CANIAS.wav", bg:"imgs/CANIAS.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    13:{name:"DISTGT XP10", wav:"wavs/DISTGT XP10.wav", bg:"imgs/DISTGT XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    14:{name:"ELECTRIC PIANO", wav:"wavs/ELECTRIC PIANO.wav", bg:"imgs/ELECTRIC PIANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    15:{name:"HAMMOND SYNTHE", wav:"wavs/HAMMOND SYNTHE.wav", bg:"imgs/HAMMOND SYNTHE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    16:{name:"HONKYTONK XP10", wav:"wavs/HONKYTONK XP10.wav", bg:"imgs/HONKYTONK XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    17:{name:"MONOLEAD N364", wav:"wavs/MONOLEAD N364.wav", bg:"imgs/MONOLEAD N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    18:{name:"MUSSETE N364", wav:"wavs/MUSSETE N364.wav", bg:"imgs/MUSSETE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    19:{name:"NEW KAWAI", wav:"wavs/NEW KAWAI.wav", bg:"imgs/NEW KAWAI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    20:{name:"ORGANO LESLIE", wav:"wavs/ORGANO LESLIE.wav", bg:"imgs/ORGANO LESLIE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    21:{name:"ORGANO", wav:"wavs/ORGANO.wav", bg:"imgs/ORGANO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    22:{name:"OUTPUT C3", wav:"wavs/OUTPUT C3.wav", bg:"imgs/OUTPUT C3.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    23:{name:"P5POLY XP10", wav:"wavs/P5POLY XP10.wav", bg:"imgs/P5POLY XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    24:{name:"PAN FLAUTE N364", wav:"wavs/PAN FLAUTE N364.wav", bg:"imgs/PAN FLAUTE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    25:{name:"PIZZICATO", wav:"wavs/PIZZICATO.wav", bg:"imgs/PIZZICATO.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    26:{name:"POLYSYNTH D-50", wav:"wavs/POLYSYNTH D-50.wav", bg:"imgs/POLYSYNTH D-50.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    27:{name:"RODES1", wav:"wavs/RODES1.wav", bg:"imgs/RODES1.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    28:{name:"SHAMISEN N364", wav:"wavs/SHAMISEN N364.wav", bg:"imgs/SHAMISEN N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    29:{name:"SITAR XP10", wav:"wavs/SITAR XP10.wav", bg:"imgs/SITAR XP10.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    30:{name:"SPLITSYNC N364", wav:"wavs/SPLITSYNC N364.wav", bg:"imgs/SPLITSYNC N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    31:{name:"SQUARE WAVE N364", wav:"wavs/SQUARE WAVE N364.wav", bg:"imgs/SQUARE WAVE N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    32:{name:"SUPER BX3", wav:"wavs/SUPER BX3.wav", bg:"imgs/SUPER BX3.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    33:{name:"TB 03", wav:"wavs/TB 03.wav", bg:"imgs/TB 03.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    34:{name:"TB BANDONEON", wav:"wavs/TB BANDONEON.wav", bg:"imgs/TB BANDONEON.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    35:{name:"TB KAWAI", wav:"wavs/TB KAWAI.wav", bg:"imgs/TB KAWAI.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    36:{name:"TB MONOLEAD", wav:"wavs/TB MONOLEAD.wav", bg:"imgs/TB MONOLEAD.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    37:{name:"TB MUSSETE", wav:"wavs/TB MUSSETE.wav", bg:"imgs/TB MUSSETE.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    38:{name:"TENOR SAX", wav:"wavs/TENOR SAX.wav", bg:"imgs/TENOR SAX.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
-    39:{name:"X PIANO N364", wav:"wavs/X PIANO N364.wav", bg:"imgs/X PIANO N364.png", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0}
+    1:{name:"ACORDEON KAWAI FS690", wav:"wavs/ACORDEON KAWAI FS690.wav", bg:"", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    5:{name:"ACUSTIC PIANO", wav:"wavs/ACUSTIC PIANO.wav", bg:"", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    14:{name:"ELECTRIC PIANO", wav:"wavs/ELECTRIC PIANO.wav", bg:"", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0},
+    23:{name:"P5POLY XP10", wav:"wavs/P5POLY XP10.wav", bg:"", adsr:{attack:.02,decay:.15,sustain:.7,release:.35}, cutoff:6000, gain:.9, pan:0}
   },
-  mixer:{}, // instId -> {gainNode, panNode}
-  liveHandles: new Set(), // para apagar todo en stop
+  // estructura mixers: instrumentId -> instMixerEl, channels: [channelObj...]
+  instMixers: {},
   init(){
-    this.master = this.ctx.createGain(); this.master.gain.value = 1;
-    const pan = this.ctx.createStereoPanner();
-    this.master.connect(pan).connect(this.ctx.destination);
-    this.mediaDest = this.ctx.createMediaStreamDestination();
-    this.master.connect(this.mediaDest);
+    this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = 1;
+    this.masterGain.connect(this.ctx.destination);
+    this.mediaDestAll = this.ctx.createMediaStreamDestination();
+    // conectar master también al mediaDestAll por si quieres grabar mezcla global
+    this.masterGain.connect(this.mediaDestAll);
   },
   async loadBuffer(instId){
     const inst = this.instruments[instId]; if (!inst || this.buffers[instId]) return;
-    const res = await fetch(inst.wav); if (!res.ok) throw new Error("No se pudo cargar: "+inst.wav);
-    const arr = await res.arrayBuffer(); this.buffers[instId] = await this.ctx.decodeAudioData(arr);
-  },
-  ensureMixer(instId){
-    if (this.mixer[instId]) return;
-    makeStrip(instId);
-  },
-  maybeRemoveMixer(instId){
-    // si no hay ninguna nota con ese inst en el roll, quita el strip
-    const stillUsed = roll.notes.some(n=> n.instId===instId);
-    if (!stillUsed && this.mixer[instId]){
-      this.mixer[instId].gainNode.disconnect();
-      this.mixer[instId].panNode.disconnect();
-      this.mixer[instId].el.remove();
-      delete this.mixer[instId];
-    }
-  },
-  noteOn({instId, semitoneFromC3, when=0, destNode=null, adsrOverride=null, cutoffOverride=null}){
-    const ctx = this.ctx, buf = this.buffers[instId]; if (!buf) return null;
-
-    const source = ctx.createBufferSource(); source.buffer = buf;
-    source.playbackRate.value = Math.pow(2, semitoneFromC3/12);
-
-    const filter = ctx.createBiquadFilter(); filter.type="lowpass";
-    filter.frequency.value = cutoffOverride ?? this.instruments[instId].cutoff;
-
-    const amp = ctx.createGain();
-    const gnode = destNode || this.mixer[instId]?.gainNode || this.master;
-    source.connect(filter).connect(amp).connect(gnode);
-
-    const A = adsrOverride?.attack  ?? this.instruments[instId].adsr.attack;
-    const D = adsrOverride?.decay   ?? this.instruments[instId].adsr.decay;
-    const S = adsrOverride?.sustain ?? this.instruments[instId].adsr.sustain;
-    const R = adsrOverride?.release ?? this.instruments[instId].adsr.release;
-    const maxGain = this.instruments[instId].gain;
-
-    const t0 = ctx.currentTime + when;
-    amp.gain.cancelScheduledValues(t0);
-    amp.gain.setValueAtTime(0, t0);
-    amp.gain.linearRampToValueAtTime(maxGain, t0 + A);
-    amp.gain.linearRampToValueAtTime(maxGain * S, t0 + A + D);
-
-    // seguridad: auto-stop en onended
-    source.onended = ()=> {
-      try{ source.disconnect(); }catch(_){}
-      try{ filter.disconnect(); }catch(_){}
-      try{ amp.disconnect(); }catch(_){}
-    };
-
-    source.start(t0);
-    const handle = {source, amp, R, start:t0};
-    this.liveHandles.add(handle);
-    return handle;
-  },
-  noteOff(handle){
-    if (!handle) return;
-    const now = this.ctx.currentTime;
-    const g = handle.amp.gain;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(g.value, now);
-    g.linearRampToValueAtTime(0, now + handle.R);
-    try{ handle.source.stop(now + handle.R + 0.03);}catch(_){}
-    this.liveHandles.delete(handle);
-  },
-  panicAll(){
-    for (const h of Array.from(this.liveHandles)){ this.noteOff(h); }
+    try{
+      const res = await fetch(inst.wav);
+      if (!res.ok) throw new Error('No se pudo cargar '+inst.wav);
+      const arr = await res.arrayBuffer();
+      this.buffers[instId] = await this.ctx.decodeAudioData(arr);
+    }catch(err){ console.warn(err); }
   }
 };
 audio.init();
 
-/* ======================= MIXER UI (dinámico) ======================= */
-const mixerEl = document.getElementById('mixer');
-function makeStrip(instId){
+/* ================= UI: Mixer container por instrumento ================= */
+const mixerWrap = document.getElementById('mixerWrap');
+const masterVol = document.getElementById('masterVol');
+masterVol.addEventListener('input', ()=>{ audio.masterGain.gain.value = +masterVol.value; });
+
+function makeInstMixer(instId){
+  if (audio.instMixers[instId]) return audio.instMixers[instId].el;
   const inst = audio.instruments[instId];
-  const strip = document.createElement('div');
-  strip.className = 'strip';
-  strip.innerHTML = `
+  const el = document.createElement('div');
+  el.className = 'inst-mixer';
+  el.innerHTML = `
     <h4>${inst.name}</h4>
-    <div class="small">Volumen</div>
-    <input class="fader" type="range" min="0" max="1" step="0.01" value="${inst.gain}" data-vol="${instId}">
-    <div class="small">Pan</div>
-    <input class="fader" type="range" min="-1" max="1" step="0.01" value="${inst.pan}" data-pan="${instId}">
-    <div class="small">Nivel</div>
-    <div class="meter" id="meter-${instId}"></div>
-  `;
-  mixerEl.appendChild(strip);
-
-  const gainNode = audio.ctx.createGain(); gainNode.gain.value = inst.gain;
-  const panNode = audio.ctx.createStereoPanner(); panNode.pan.value = inst.pan;
-  gainNode.connect(panNode).connect(audio.master);
-  audio.mixer[instId] = {gainNode, panNode, meterVal:0, el:strip};
-
-  strip.querySelector('[data-vol]').addEventListener('input', e=>{
-    const v = parseFloat(e.target.value); inst.gain = v; gainNode.gain.value = v;
-  });
-  strip.querySelector('[data-pan]').addEventListener('input', e=>{
-    const p = parseFloat(e.target.value); inst.pan = p; panNode.pan.value = p;
-  });
-}
-
-/* ======================= INSTRUMENT WINDOW (single) ======================= */
-let currentInstrumentId = null;
-let currentInstWin = null;
-function openInstrument(instId){
-  const inst = audio.instruments[instId];
-  currentInstrumentId = instId;
-
-  if (currentInstWin) currentInstWin.remove(); // evita doble ventana
-  const win = document.createElement('div');
-  win.className = 'inst-win';
-  win.innerHTML = `
-    <div class="inst-title">
-      <div class="name">${inst.name}</div>
-      <div class="x" title="Cerrar">✕</div>
+    <div class="small muted">Canales</div>
+    <div class="channels"></div>
+    <div style="display:flex;gap:8px; margin-top:6px;">
+      <button class="btn-small create-channel">➕ Crear canal</button>
     </div>
-    <div class="inst-bg" style="background-image:url('${inst.bg || ""}')"></div>
-    <div class="inst-ctrls">
-      <div class="knob"><label>Gain</label><input type="range" min="0" max="1" step="0.01" value="${inst.gain}" data-k="gain"></div>
-      <div class="knob"><label>Attack</label><input type="range" min="0" max="2" step="0.01" value="${inst.adsr.attack}" data-k="attack"></div>
-      <div class="knob"><label>Decay</label><input type="range" min="0" max="2" step="0.01" value="${inst.adsr.decay}" data-k="decay"></div>
-      <div class="knob"><label>Sustain</label><input type="range" min="0" max="1" step="0.01" value="${inst.adsr.sustain}" data-k="sustain"></div>
-      <div class="knob"><label>Release</label><input type="range" min="0" max="4" step="0.01" value="${inst.adsr.release}" data-k="release"></div>
-      <div class="knob"><label>Cutoff</label><input type="range" min="100" max="12000" step="1" value="${inst.cutoff}" data-k="cutoff"></div>
-    </div>
-    <div class="kbdhint">Toca con el teclado: A W S E D F T G Y H U J K (C3..C4)</div>
   `;
-  document.body.appendChild(win);
-  currentInstWin = win;
+  mixerWrap.appendChild(el);
 
-  // close
-  win.querySelector('.x').onclick = ()=> { win.remove(); currentInstWin=null; };
+  const channelsEl = el.querySelector('.channels');
 
-  // drag
-  const header = win.querySelector('.inst-title');
-  let dragging=false, offX=0, offY=0;
-  header.addEventListener('mousedown', e=>{
-    dragging=true; offX=e.clientX - win.offsetLeft; offY=e.clientY - win.offsetTop;
-    document.body.style.userSelect='none';
-  });
-  document.addEventListener('mousemove', e=>{
-    if(!dragging) return;
-    let x = e.clientX - offX, y = e.clientY - offY;
-    x = Math.max(8, Math.min(x, window.innerWidth - win.offsetWidth - 8));
-    y = Math.max(8, Math.min(y, window.innerHeight - win.offsetHeight - 8));
-    win.style.left = x+'px'; win.style.top = y+'px';
-  });
-  document.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect='' });
+  // estructura para este instrumento
+  const state = {instId, el, channelsEl, channels:[], nextChannelId:1};
+  audio.instMixers[instId] = state;
 
-  // knobs
-  win.querySelectorAll('input[type="range"]').forEach(r=>{
-    r.addEventListener('input', e=>{
-      const k = e.target.dataset.k; const v = parseFloat(e.target.value);
-      if (k==='gain'){ inst.gain=v; audio.mixer[instId]?.gainNode && (audio.mixer[instId].gainNode.gain.value=v); }
-      else if (k==='cutoff'){ inst.cutoff = v; }
-      else { inst.adsr[k]=v; }
-    });
-  });
+  // crear canal
+  el.querySelector('.create-channel').addEventListener('click', ()=> createChannelForInstrument(instId));
 
-  // buffer
-  audio.loadBuffer(instId).catch(err=> console.warn(err));
+  return el;
 }
-// listeners a botones (una sola vez)
-document.querySelectorAll('.inst-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=> openInstrument(parseInt(btn.dataset.id,10)));
-});
 
-/* ======================= KEYBOARD PLAY (live) ======================= */
-const keyToSemitone = { a:0,w:1,s:2,e:3,d:4,f:5,t:6,g:7,y:8,h:9,u:10,j:11,k:12 };
-const liveActive = new Map(); // key -> handle
-document.addEventListener('keydown', async (e)=>{
-  if (e.repeat) return;
-  if (!currentInstrumentId) return;
-  const k = e.key.toLowerCase();
-  if (!(k in keyToSemitone)) return;
-  if (audio.ctx.state==='suspended') await audio.ctx.resume();
-  await audio.loadBuffer(currentInstrumentId).catch(()=>{});
-  audio.ensureMixer(currentInstrumentId); // se oye por mixer si ya existe
-  const handle = audio.noteOn({instId: currentInstrumentId, semitoneFromC3:keyToSemitone[k]});
-  liveActive.set(k, handle);
-});
-document.addEventListener('keyup', (e)=>{
-  const k = e.key.toLowerCase();
-  const h = liveActive.get(k);
-  if (h){ audio.noteOff(h); liveActive.delete(k); }
-});
-
-/* ======================= PIANO ROLL (con teclas a la izquierda) ======================= */
-const rollArea = document.getElementById('rollArea');
-const rollCanvas = document.getElementById('rollCanvas');
-const keysCanvas = document.getElementById('keysCanvas');
-const rctx = rollCanvas.getContext('2d');
-const kctx = keysCanvas.getContext('2d');
-
-const roll = {
-  quant: 1/4, bars: 4, tempo: 120,
-  pxPerBeat: 80, rowH: 20, rows: 16,
-  keyLaneW: 80,
-  notes: [], // {x,len,row,instId}
-  dragging: null,
-  playing: false, startMs: 0
-};
-const baseMidi = 48; // C3
-function quantizeBeat(b){ const q = roll.quant; return Math.round(b/q)*q; }
-function beatsToPx(b){ return b*roll.pxPerBeat; }
-function pxToBeats(px){ return px/roll.pxPerBeat; }
-function totalBeats(){ return roll.bars*4; }
-function songMs(){ const beats = totalBeats(); const spb=60/roll.tempo; return beats*spb*1000; }
-function isBlack(m){ const cls = [1,3,6,8,10]; return cls.includes(m%12); }
-function noteName(m){
-  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  return names[m%12] + Math.floor(m/12);
+/* ================= Channel creation and management ================= */
+/*
+channel object:
+{
+  channelId (number),
+  instId,
+  gainNode,
+  panNode,
+  mediaDest, recorder, recChunks[],
+  recordings: [{blob, url, duration}],
+  el (DOM),
 }
-function resizeCanvases(){
-  const height = roll.rows * roll.rowH;
-  const width  = roll.keyLaneW + beatsToPx(totalBeats()) + 2;
-  keysCanvas.width = roll.keyLaneW;
-  keysCanvas.height = height;
-  rollCanvas.width = width;
-  rollCanvas.height = height;
-  // ajustar contenedor
-  keysCanvas.style.width = roll.keyLaneW + 'px';
-  rollCanvas.style.left = '0px';
-  // desplazamiento visual: el área visible necesita padding izquierdo para ver teclas fijas
-  // truco: pintamos teclas dentro de keysCanvas (fixed) y notas desplazadas + keyLane offset
-}
-resizeCanvases();
+*/
+async function createChannelForInstrument(instId){
+  if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+  await audio.loadBuffer(instId); // preload sample if needed
 
-// UI chips grid
-const grids = [1,1/2,1/4,1/8,1/16,1/32];
-const gridChips = document.getElementById('gridChips');
-grids.forEach(g=>{
-  const chip = document.createElement('div');
-  const label = (g===1)?'1/1':(g===0.5)?'1/2':`1/${1/g}`;
-  chip.className='chip'+(g===roll.quant?' active':'' );
-  chip.textContent = label;
-  chip.onclick = ()=>{
-    roll.quant=g;
-    [...gridChips.children].forEach(c=>c.classList.remove('active'));
-    chip.classList.add('active');
-    drawAll();
+  const instMixer = audio.instMixers[instId] || makeInstMixer(instId);
+  const state = audio.instMixers[instId];
+
+  // create audio nodes for channel bus
+  const gainNode = audio.ctx.createGain();
+  const panNode = audio.ctx.createStereoPanner();
+  gainNode.gain.value = audio.instruments[instId].gain ?? 1;
+  panNode.pan.value = audio.instruments[instId].pan ?? 0;
+  gainNode.connect(panNode).connect(audio.masterGain);
+
+  // media dest for recording this channel
+  const mediaDest = audio.ctx.createMediaStreamDestination();
+  // connect channel bus also to mediaDest so recorder records post-fader signal
+  gainNode.connect(mediaDest);
+
+  // DOM
+  const chEl = document.createElement('div');
+  chEl.className = 'channel';
+  const id = state.nextChannelId++;
+
+  chEl.innerHTML = `
+    <div class="ch-top">
+      <div style="display:flex;align-items:center;gap:8px">
+        <strong>Canal ${id}</strong>
+        <div class="small muted">(${audio.instruments[instId].name})</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-small remove-ch">Eliminar</button>
+      </div>
+    </div>
+    <div>
+      <div class="small">Vol</div>
+      <input class="fader ch-vol" type="range" min="0" max="1" step="0.01" value="${gainNode.gain.value}">
+      <div class="small">Pan</div>
+      <input class="fader ch-pan" type="range" min="-1" max="1" step="0.01" value="${panNode.pan.value}">
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="btn-small rec-btn">● Grabar</button>
+      <button class="btn-small stop-rec-btn" disabled>■ Detener</button>
+      <button class="btn-small play-last" disabled>▶ Play última</button>
+    </div>
+    <div class="small muted">Grabaciones</div>
+    <div class="recordings"></div>
+  `;
+  state.channelsEl.appendChild(chEl);
+
+  // channel object
+  const channel = {
+    channelId: id,
+    instId,
+    gainNode,
+    panNode,
+    mediaDest,
+    recorder: null,
+    recChunks: [],
+    recordings: [], // {blob, url, duration}
+    el: chEl
   };
-  gridChips.appendChild(chip);
-});
-// tempo/bars/zoom
-document.getElementById('tempo').addEventListener('input', e=>{ roll.tempo = Math.max(40, Math.min(220, +e.target.value||120)); });
-document.getElementById('bars').addEventListener('input', e=>{ roll.bars = Math.max(1, Math.min(64, +e.target.value||4)); resizeCanvases(); drawAll(); });
-document.getElementById('zoom').addEventListener('input', e=>{ roll.pxPerBeat = +e.target.value; resizeCanvases(); drawAll(); });
 
-/* Dibujo de teclas + notas */
-function drawKeys(){
-  const H = keysCanvas.height;
-  kctx.clearRect(0,0,keysCanvas.width,H);
-  for (let r=0; r<roll.rows; r++){
-    const midi = baseMidi + (roll.rows-1-r);
-    const y = r*roll.rowH;
-    // fondo de tecla
-    kctx.fillStyle = isBlack(midi) ? '#0b0f14' : '#0e141b';
-    kctx.fillRect(0,y,keysCanvas.width,roll.rowH);
-    // línea
-    kctx.strokeStyle = '#1d2a3b';
-    kctx.beginPath(); kctx.moveTo(0,y+.5); kctx.lineTo(keysCanvas.width,y+.5); kctx.stroke();
-    // etiqueta
-    kctx.fillStyle = '#cfe0f3';
-    kctx.font = '12px sans-serif';
-    kctx.fillText(noteName(midi), 8, y + roll.rowH - 6);
-  }
-}
-function drawNotes(){
-  const H = rollCanvas.height, W = rollCanvas.width;
-  rctx.clearRect(0,0,W,H);
+  // wire UI controls
+  chEl.querySelector('.ch-vol').addEventListener('input', e=>{
+    const v = +e.target.value; channel.gainNode.gain.value = v;
+  });
+  chEl.querySelector('.ch-pan').addEventListener('input', e=>{
+    const p = +e.target.value; channel.panNode.pan.value = p;
+  });
 
-  // fondo por filas (continuidad)
-  for (let r=0; r<roll.rows; r++){
-    rctx.fillStyle = (r%2===0)?'#101722':'#0d131c';
-    rctx.fillRect(roll.keyLaneW, r*roll.rowH, W-roll.keyLaneW, roll.rowH);
-  }
-  // grid vertical
-  const beats = totalBeats();
-  for (let b=0; b<=beats; b+=roll.quant){
-    const x = Math.floor(roll.keyLaneW + beatsToPx(b)) + .5;
-    rctx.strokeStyle = (Math.abs(b - Math.round(b))<1e-6) ? '#2a3a4f' : '#1e2a3c';
-    rctx.lineWidth = (Math.abs(b - Math.round(b))<1e-6) ? 1.5 : 1;
-    rctx.beginPath(); rctx.moveTo(x,0); rctx.lineTo(x,H); rctx.stroke();
-  }
-  // notas
-  for (const n of roll.notes){
-    const x = Math.floor(roll.keyLaneW + beatsToPx(n.x)) + .5;
-    const w = Math.max(6, Math.floor(beatsToPx(n.len)));
-    const y = (roll.rows-1-n.row)*roll.rowH + 3; // invertir para que fila alta sea agudo
-    const h = roll.rowH - 6;
-    const hue = (n.instId*97)%360;
-    rctx.fillStyle = `hsl(${hue} 70% 55% / .85)`;
-    rctx.fillRect(x, y, w, h);
-    rctx.strokeStyle = `hsl(${hue} 80% 35%)`;
-    rctx.strokeRect(x, y, w, h);
-    rctx.fillStyle = '#fff';
-    rctx.fillRect(x+w-5, y, 5, h);
-  }
-  // playhead
-  if (roll.playing){
-    const t = (performance.now() - roll.startMs);
-    const x = 0.5 + roll.keyLaneW + (t/songMs()) * beatsToPx(totalBeats());
-    rctx.strokeStyle = '#ff4d4f';
-    rctx.lineWidth = 2;
-    rctx.beginPath(); rctx.moveTo(x,0); rctx.lineTo(x,H); rctx.stroke();
-    requestAnimationFrame(drawAll);
-  }
-}
-function drawAll(){ drawKeys(); drawNotes(); }
-drawAll();
+  // remove channel
+  chEl.querySelector('.remove-ch').addEventListener('click', ()=>{
+    // stop recorder if active
+    if (channel.recorder && channel.recorder.state !== 'inactive') channel.recorder.stop();
+    try{ channel.gainNode.disconnect(); channel.panNode.disconnect(); }catch(_){}
+    // remove DOM and state
+    chEl.remove();
+    state.channels = state.channels.filter(c=> c !== channel);
+  });
 
-// Helpers hit-testing
-function mouseToBeatRow(e){
-  const rect = rollCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const b = pxToBeats(Math.max(0, mx - roll.keyLaneW));
-  const r = roll.rows-1 - Math.floor(my/roll.rowH);
-  return {mx,my,b,r};
-}
-function noteAt(mx,my){
-  for (let i=roll.notes.length-1; i>=0; i--){
-    const n = roll.notes[i];
-    const x = roll.keyLaneW + beatsToPx(n.x);
-    const w = beatsToPx(n.len);
-    const y = (roll.rows-1-n.row)*roll.rowH + 3;
-    const h = roll.rowH - 6;
-    if (mx>=x && mx<=x+w && my>=y && my<=y+h){
-      const resize = (mx>=x+w-6);
-      return {n, i, resize};
-    }
-  }
-  return null;
-}
+  // record handlers
+  const recBtn = chEl.querySelector('.rec-btn');
+  const stopRecBtn = chEl.querySelector('.stop-rec-btn');
+  const playLastBtn = chEl.querySelector('.play-last');
+  const recordingsEl = chEl.querySelector('.recordings');
 
-// Interacción mouse
-rollCanvas.addEventListener('contextmenu', (e)=>{ // borrar con click derecho
-  e.preventDefault();
-  const rect = rollCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const hit = noteAt(mx,my);
-  if (hit){
-    const instId = hit.n.instId;
-    roll.notes.splice(hit.i,1);
-    drawAll();
-    audio.maybeRemoveMixer(instId);
-  }
-});
-
-rollCanvas.addEventListener('mousedown', (e)=>{
-  if (e.button===2) return; // click derecho ya manejado
-  const {mx,my,b,r} = mouseToBeatRow(e);
-
-  // ¿clic sobre nota existente?
-  const hit = noteAt(mx,my);
-  if (hit){
-    const {n, resize} = hit;
-    if (resize){
-      roll.dragging = {note:n, type:'resize'};
-    }else{
-      roll.dragging = {note:n, type:'move', offX: b - n.x, offR: r - n.row};
-    }
-    return;
-  }
-  // crear nueva nota (usa instrumento activo, sino 1)
-  const instId = currentInstrumentId || 1;
-  const xBeat = quantizeBeat(b);
-  const newNote = {x:xBeat, len: Math.max(roll.quant, 1*roll.quant), row: Math.max(0, Math.min(roll.rows-1, r)), instId};
-  roll.notes.push(newNote);
-  roll.dragging = {note:newNote, type:'resize'};
-  audio.ensureMixer(instId); // crea strip al usar instrumento
-  drawAll();
-});
-
-window.addEventListener('mousemove', (e)=>{
-  if (!roll.dragging) return;
-  const {b,r} = mouseToBeatRow(e);
-  const n = roll.dragging.note;
-  if (roll.dragging.type==='move'){
-    n.x = Math.max(0, quantizeBeat(b - roll.dragging.offX));
-    n.row = Math.max(0, Math.min(roll.rows-1, r - roll.dragging.offR));
-  }else{ // resize
-    const newLen = Math.max(roll.quant, quantizeBeat(b - n.x));
-    n.len = newLen;
-  }
-  drawAll();
-});
-window.addEventListener('mouseup', ()=>{
-  if (roll.dragging){
-    // tras mover/resize, quizá quitar strips sin uso
-    const changedInst = roll.dragging.note.instId;
-    audio.maybeRemoveMixer(changedInst);
-  }
-  roll.dragging = null;
-});
-
-/* ======================= Reproducción (scheduler) ======================= */
-const playBtn = document.getElementById('playBtn');
-playBtn.onclick = ()=>{ if (roll.playing) stopPlay(); else startPlay(); };
-
-let scheduled = [];
-async function startPlay(){
-  if (audio.ctx.state==='suspended') await audio.ctx.resume();
-  // buffers necesarios
-  const neededInst = new Set(roll.notes.map(n=> n.instId));
-  for (const id of neededInst){ try{ await audio.loadBuffer(+id);}catch(_){ } audio.ensureMixer(+id); }
-
-  roll.playing = true; roll.startMs = performance.now();
-  playBtn.classList.add('playing'); playBtn.textContent='⏹ Stop';
-  scheduled = [];
-
-  const spb = 60/roll.tempo;
-  const t0 = audio.ctx.currentTime;
-
-  for (const n of roll.notes){
-    const whenSec = n.x*spb;
-    const handle = audio.noteOn({
-      instId:n.instId,
-      semitoneFromC3: n.row, // row 0 = C3
-      when: whenSec
-    });
-    const offAt = t0 + (n.x+n.len)*spb;
-    scheduled.push({handle, offAt});
-  }
-
-  function loop(){
-    if (!roll.playing) return;
-    const now = audio.ctx.currentTime;
-    for (const s of scheduled){
-      if (!s.done && now>=s.offAt){ audio.noteOff(s.handle); s.done=true; }
-    }
-    if (performance.now() < (roll.startMs + songMs())){ requestAnimationFrame(drawAll); }
-    else { stopPlay(); }
-  }
-  requestAnimationFrame(loop);
-}
-function stopPlay(){
-  roll.playing = false;
-  for (const s of scheduled){ if (s.handle) audio.noteOff(s.handle); }
-  scheduled = [];
-  audio.panicAll(); // seguridad
-  playBtn.classList.remove('playing'); playBtn.textContent='▶ Play';
-  drawAll();
-}
-
-/* ======================= GRABACIÓN EN VIVO ======================= */
-const recBtn = document.getElementById('recBtn');
-const stopRecBtn = document.getElementById('stopRecBtn');
-recBtn.onclick = async ()=>{
-  if (audio.ctx.state==='suspended') await audio.ctx.resume();
-  if (!audio.recorder){
-    const stream = audio.mediaDest.stream;
+  recBtn.addEventListener('click', async ()=>{
+    if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+    // create MediaRecorder from mediaDest.stream
+    const stream = channel.mediaDest.stream;
     const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-    audio.recorder = new MediaRecorder(stream, {mimeType:mime});
-    audio.recorder.ondataavailable = e=> audio.chunks.push(e.data);
-    audio.recorder.onstop = ()=>{
-      const blob = new Blob(audio.chunks, {type: audio.recorder.mimeType});
-      audio.chunks = [];
+    channel.recChunks = [];
+    try{
+      channel.recorder = new MediaRecorder(stream, {mimeType:mime});
+    }catch(err){
+      channel.recorder = new MediaRecorder(stream);
+    }
+    channel.recorder.ondataavailable = e => { if (e.data && e.data.size) channel.recChunks.push(e.data); };
+    channel.recorder.onstop = async ()=>{
+      const blob = new Blob(channel.recChunks, {type: channel.recorder.mimeType || 'audio/webm'});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'live_recording.webm';
-      a.click();
-      URL.revokeObjectURL(url);
-      audio.recorder = null;
+      // try to decode to get duration (async)
+      let duration = 0;
+      try{
+        const arr = await blob.arrayBuffer();
+        const tmp = await audio.ctx.decodeAudioData(arr.slice(0));
+        duration = tmp.duration;
+      }catch(_){ duration = 0; }
+
+      const rec = {blob, url, duration};
+      channel.recordings.push(rec);
+      appendRecordingItem(channel, rec);
+      playLastBtn.disabled = false;
+      stopRecBtn.disabled = true;
+      recBtn.disabled = false;
+      recBtn.classList.remove('rec-on');
     };
-  }
-  audio.chunks = [];
-  audio.recorder.start();
-  recBtn.textContent='● Grabando...';
-  recBtn.style.color = '#ffb3b3';
-};
-stopRecBtn.onclick = ()=>{
-  if (audio.recorder && audio.recorder.state!=='inactive'){
-    audio.recorder.stop();
-    recBtn.textContent='● Grabar en vivo';
-    recBtn.style.color='';
-  }
-};
 
-/* ======================= EXPORT MP3 (Offline) ======================= */
-document.getElementById('exportMp3Btn').onclick = async ()=>{
-  const spb = 60/roll.tempo;
-  const lengthSec = totalBeats()*spb + 4;
+    channel.recorder.start();
+    recBtn.classList.add('rec-on');
+    recBtn.disabled = true;
+    stopRecBtn.disabled = false;
+  });
+
+  stopRecBtn.addEventListener('click', ()=>{
+    if (channel.recorder && channel.recorder.state !== 'inactive') channel.recorder.stop();
+  });
+
+  playLastBtn.addEventListener('click', async ()=>{
+    if (channel.recordings.length === 0) return;
+    const last = channel.recordings[channel.recordings.length-1];
+    await playBlobThroughCtx(last.blob, channel);
+  });
+
+  // save channel in state
+  state.channels.push(channel);
+
+  return channel;
+}
+
+function appendRecordingItem(channel, rec){
+  const list = channel.el.querySelector('.recordings');
+  const item = document.createElement('div');
+  item.className = 'rec-item';
+  item.innerHTML = `
+    <div style="flex:1">
+      <div class="small">Dur: ${rec.duration?rec.duration.toFixed(2)+'s':'–'}</div>
+      <div class="small muted" style="font-size:11px">${new Date().toLocaleString()}</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn-small play-rec">▶</button>
+      <a class="btn-small download-rec" href="${rec.url}" download="grabacion_${channel.instId}_${channel.channelId}.webm">⬇</a>
+      <button class="btn-small del-rec">✖</button>
+    </div>
+  `;
+  list.appendChild(item);
+
+  const playBtn = item.querySelector('.play-rec');
+  const delBtn = item.querySelector('.del-rec');
+  const dl = item.querySelector('.download-rec');
+
+  playBtn.addEventListener('click', ()=> playBlobThroughCtx(rec.blob, channel));
+  delBtn.addEventListener('click', ()=>{
+    // remove from array and DOM
+    const idx = channel.recordings.indexOf(rec);
+    if (idx >= 0) channel.recordings.splice(idx,1);
+    item.remove();
+    URL.revokeObjectURL(rec.url);
+  });
+}
+
+/* ==================== Playback helpers ==================== */
+async function playBlobThroughCtx(blob, channel){
+  // decode blob to AudioBuffer and play via bufferSource routed through channel nodes
+  try{
+    const arr = await blob.arrayBuffer();
+    const buf = await audio.ctx.decodeAudioData(arr.slice(0));
+    const src = audio.ctx.createBufferSource();
+    src.buffer = buf;
+    // connect to a gain node so it's subject to channel fader/pan
+    const tmpGain = audio.ctx.createGain();
+    src.connect(tmpGain).connect(channel.gainNode);
+    src.start();
+    src.onended = ()=> {
+      try{ tmpGain.disconnect(); src.disconnect(); }catch(_){}
+    };
+  }catch(err){
+    console.warn('No se pudo reproducir blob:', err);
+    // fallback: create audio element and play (bypasses channel fader)
+    const url = URL.createObjectURL(blob);
+    const a = new Audio(url);
+    a.onended = ()=> URL.revokeObjectURL(url);
+    a.play();
+  }
+}
+
+/* ==================== Play / Stop whole mixer ==================== */
+const playMixerBtn = document.getElementById('playMixerBtn');
+const stopMixerBtn = document.getElementById('stopMixerBtn');
+let mixerPlayingHandles = [];
+
+playMixerBtn.addEventListener('click', async ()=>{
+  if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+  // decode latest recording per channel and start all at t0
+  mixerPlayingHandles.forEach(h=>{ try{ h.source.stop(); }catch(_){ }});
+  mixerPlayingHandles = [];
+
+  const allDecodes = [];
+  for (const instId of Object.keys(audio.instMixers)){
+    const state = audio.instMixers[instId];
+    for (const ch of state.channels){
+      if (ch.recordings.length === 0) continue;
+      const last = ch.recordings[ch.recordings.length - 1];
+      allDecodes.push({ch, blob: last.blob});
+    }
+  }
+
+  // decode all
+  for (const item of allDecodes){
+    try{
+      const arr = await item.blob.arrayBuffer();
+      const buf = await audio.ctx.decodeAudioData(arr.slice(0));
+      const src = audio.ctx.createBufferSource();
+      src.buffer = buf;
+      const tmpGain = audio.ctx.createGain();
+      src.connect(tmpGain).connect(item.ch.gainNode);
+      src.start();
+      mixerPlayingHandles.push({source:src, tmpGain});
+      src.onended = ()=> { try{ tmpGain.disconnect(); src.disconnect(); }catch(_){} };
+    }catch(err){
+      console.warn('Error decoding for mixer playback', err);
+    }
+  }
+});
+
+stopMixerBtn.addEventListener('click', ()=>{
+  for (const h of mixerPlayingHandles){
+    try{ h.source.stop(); }catch(_){}
+    try{ h.tmpGain.disconnect(); }catch(_){}
+  }
+  mixerPlayingHandles = [];
+});
+
+/* ==================== Export mezcla a MP3 ==================== */
+document.getElementById('exportMp3Btn').addEventListener('click', async ()=>{
+  // recolectar todos los recordings y sum durations por canal para colocarlos secuencialmente en cada pista
+  // calculamos una duración final: la máxima suma de duraciones por canal
+  const channelsAll = [];
+  for (const instId of Object.keys(audio.instMixers)){
+    const state = audio.instMixers[instId];
+    for (const ch of state.channels){
+      if (ch.recordings.length === 0) continue;
+      channelsAll.push(ch);
+    }
+  }
+  if (channelsAll.length === 0){ alert('No hay grabaciones en el mixer para exportar.'); return; }
+
+  // decodificar todas las grabaciones por canal
+  // para cada canal, concatenamos sus grabaciones en la pista del bus (emulamos que se tocan en orden una tras otra)
+  // determinamos finalLength en segundos
+  const decodedPerChannel = []; // {ch, buffers: [AudioBuffer], totalDur}
+  let finalSeconds = 0;
+
+  for (const ch of channelsAll){
+    const bufs = [];
+    let sum = 0;
+    for (const rec of ch.recordings){
+      try{
+        const arr = await rec.blob.arrayBuffer();
+        const b = await audio.ctx.decodeAudioData(arr.slice(0));
+        bufs.push(b);
+        sum += b.duration;
+      }catch(err){
+        console.warn('decode err', err);
+      }
+    }
+    decodedPerChannel.push({ch, buffers:bufs, totalDur:sum});
+    if (sum > finalSeconds) finalSeconds = sum;
+  }
+
+  // final length: max channel total
+  if (finalSeconds <= 0) { alert('No se pudo determinar duración de las grabaciones.'); return; }
   const sampleRate = 44100;
-  const offline = new OfflineAudioContext(2, Math.ceil(lengthSec*sampleRate), sampleRate);
+  const offline = new OfflineAudioContext(2, Math.ceil(finalSeconds * sampleRate), sampleRate);
 
-  // buses mixer
-  const busses = {};
-  for (const id of Object.keys(audio.instruments)){
-    const g = offline.createGain(); g.gain.value = audio.instruments[id].gain;
-    const p = offline.createStereoPanner(); p.pan.value = audio.instruments[id].pan;
+  // para cada channel, crear un bus (gain + pan) y conectar a offline.destination
+  for (const item of decodedPerChannel){
+    const g = offline.createGain(); g.gain.value = item.ch.gainNode.gain.value;
+    const p = offline.createStereoPanner(); p.pan.value = item.ch.panNode.pan.value;
     g.connect(p).connect(offline.destination);
-    busses[id] = {g,p};
+
+    // por cada buffer en orden, crear buffer source y ubicarlo en la timeline acumulativa
+    let offset = 0;
+    for (const b of item.buffers){
+      const src = offline.createBufferSource();
+      // copiar channels
+      const clone = offline.createBuffer(b.numberOfChannels, b.length, b.sampleRate);
+      for (let c=0;c<b.numberOfChannels;c++) clone.copyToChannel(b.getChannelData(c), c);
+      src.buffer = clone;
+      src.connect(g);
+      src.start(offset);
+      offset += b.duration;
+    }
   }
 
-  // asegurar buffers listos
-  for (const id of Object.keys(audio.instruments)){
-    if (!audio.buffers[id]){ try{ await audio.loadBuffer(+id); }catch(_){ } }
+  // render offline
+  try{
+    const rendered = await offline.startRendering();
+    const mp3bytes = wavToMp3(rendered);
+    const blob = new Blob([new Uint8Array(mp3bytes)], {type:'audio/mpeg'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'mezcla.mp3';
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error('Error al renderizar offline', err);
+    alert('Error al exportar: ' + err.message);
   }
+});
 
-  // programar
-  for (const n of roll.notes){
-    const src = offline.createBufferSource();
-    const mainBuf = audio.buffers[n.instId];
-    if (!mainBuf) continue;
-    const clone = offline.createBuffer(mainBuf.numberOfChannels, mainBuf.length, mainBuf.sampleRate);
-    for (let ch=0; ch<mainBuf.numberOfChannels; ch++){ clone.copyToChannel(mainBuf.getChannelData(ch), ch); }
-    src.buffer = clone;
-    src.playbackRate.value = Math.pow(2, n.row/12);
-
-    const filt = offline.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value = audio.instruments[n.instId].cutoff;
-    const amp  = offline.createGain();
-    src.connect(filt).connect(amp).connect(busses[n.instId].g);
-
-    const {attack:A,decay:D,sustain:S,release:R} = audio.instruments[n.instId].adsr;
-    const t0 = n.x*spb;
-    amp.gain.setValueAtTime(0, t0);
-    amp.gain.linearRampToValueAtTime(1, t0+A);
-    amp.gain.linearRampToValueAtTime(S, t0+A+D);
-
-    src.start(t0);
-    const off = (n.x+n.len)*spb;
-    amp.gain.setValueAtTime(amp.gain.value, off);
-    amp.gain.linearRampToValueAtTime(0, off + R);
-    try{ src.stop(off + R + .03);}catch(_){}
-  }
-
-  const rendered = await offline.startRendering();
-  const mp3 = wavToMp3(rendered);
-  const url = URL.createObjectURL(new Blob([new Uint8Array(mp3)], {type:'audio/mpeg'}));
-  const a = document.createElement('a');
-  a.href = url; a.download = 'arrangement.mp3'; a.click();
-  URL.revokeObjectURL(url);
-};
-
+// convierte AudioBuffer a mp3 con lamejs
 function wavToMp3(abuf){
   const numCh = 2, sr = abuf.sampleRate;
   const ch0 = abuf.getChannelData(0);
   const ch1 = (abuf.numberOfChannels>1)?abuf.getChannelData(1):ch0;
-  const enc = new lamejs.Mp3Encoder(numCh, sr, 128);
-  const block = 1152; const out = [];
-  function f2i16(f){ const s = Math.max(-1, Math.min(1, f)); return s<0 ? s*0x8000 : s*0x7FFF; }
+  const enc = new lamejs.Mp3Encoder(numCh, sr, 192);
+  const block = 1152;
+  const out = [];
+  function f2i16(f){ const s = Math.max(-1, Math.min(1, f)); return s<0 ? Math.round(s*0x8000) : Math.round(s*0x7FFF); }
   for (let i=0; i<ch0.length; i+=block){
     const l = ch0.subarray(i, i+block), r = ch1.subarray(i, i+block);
     const L = new Int16Array(l.length), R = new Int16Array(r.length);
@@ -764,6 +502,81 @@ function wavToMp3(abuf){
   const flush = enc.flush(); if (flush.length) out.push(flush);
   return out.reduce((acc,chunk)=> new Uint8Array([...acc,...chunk]), new Uint8Array());
 }
+
+/* ============== Instrument windows: abrir ventana y crear canal ============== */
+let currentInstWin = null;
+function openInstrument(instId){
+  const inst = audio.instruments[instId];
+  if (!inst) return;
+  if (currentInstWin) currentInstWin.remove();
+  const win = document.createElement('div');
+  win.style.position='fixed';
+  win.style.top='120px';
+  win.style.left='120px';
+  win.style.width='420px';
+  win.style.borderRadius='12px';
+  win.style.overflow='hidden';
+  win.style.border='1px solid #264562';
+  win.style.background='#0d1218';
+  win.style.boxShadow='0 20px 60px rgba(0,0,0,.5)';
+  win.style.zIndex='60';
+  win.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(0,0,0,.35);border-bottom:1px solid #1b2b3c;cursor:move;">
+      <div style="font-weight:700">${inst.name}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-small create-channel">➕ Crear canal</button>
+        <button class="btn-small close-win">✕</button>
+      </div>
+    </div>
+    <div style="padding:12px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div style="flex:1">
+        <div class="small muted">Gain</div>
+        <input type="range" min="0" max="1" step="0.01" value="${inst.gain}" data-k="gain" style="width:100%">
+      </div>
+      <div style="flex:1">
+        <div class="small muted">Cutoff</div>
+        <input type="range" min="100" max="12000" step="1" value="${inst.cutoff}" data-k="cutoff" style="width:100%">
+      </div>
+    </div>
+    <div style="padding:0 12px 12px 12px" class="kbdhint">Toca con tu dispositivo o usa samples predefinidos. Usa "Crear canal" para crear un canal en el Mixer.</div>
+  `;
+  document.body.appendChild(win);
+  currentInstWin = win;
+
+  // handlers
+  win.querySelector('.close-win').onclick = ()=> { win.remove(); currentInstWin=null; };
+  win.querySelector('.create-channel').addEventListener('click', ()=>{
+    makeInstMixer(instId); // ensure inst mixer exists
+    createChannelForInstrument(instId);
+  });
+  // small knobs in window affect default instrument settings
+  win.querySelectorAll('input[type="range"]').forEach(r=>{
+    r.addEventListener('input', e=>{
+      const k = e.target.dataset.k; const v = parseFloat(e.target.value);
+      if (k === 'gain'){ inst.gain = v; }
+      if (k === 'cutoff'){ inst.cutoff = v; }
+    });
+  });
+
+  // allow dragging of window
+  const header = win.firstElementChild;
+  let dragging = false, offX=0, offY=0;
+  header.addEventListener('mousedown', e=>{ dragging=true; offX=e.clientX - win.offsetLeft; offY=e.clientY - win.offsetTop; document.body.style.userSelect='none'; });
+  document.addEventListener('mousemove', e=>{ if(!dragging) return; let x = e.clientX-offX, y = e.clientY-offY; x=Math.max(8, Math.min(x, window.innerWidth-win.offsetWidth-8)); y=Math.max(8, Math.min(y, window.innerHeight-win.offsetHeight-8)); win.style.left=x+'px'; win.style.top=y+'px'; });
+  document.addEventListener('mouseup', ()=>{ dragging=false; document.body.style.userSelect=''; });
+}
+
+/* ============== Attach instrument buttons ============== */
+document.querySelectorAll('.inst-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    const id = parseInt(btn.dataset.id,10);
+    makeInstMixer(id); // create mixer block
+    openInstrument(id);
+  });
+});
+
+/* ================= Quick demo: create mixer area if instrument created externally ================= */
+ // nothing more; user triggers by clicking instrument
 </script>
 </body>
 </html>
